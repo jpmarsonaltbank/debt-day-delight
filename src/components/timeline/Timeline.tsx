@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { Download } from 'lucide-react';
 
 const Timeline: React.FC = () => {
   const { toast } = useToast();
@@ -286,10 +287,65 @@ const Timeline: React.FC = () => {
     });
   };
 
+  // Export timeline configuration as JSON
+  const handleExportConfig = () => {
+    try {
+      // Create the configuration object
+      const timelineConfig = {
+        days: days.filter(day => day.active),
+        libraryActions
+      };
+      
+      // Convert to JSON string with pretty formatting
+      const jsonString = JSON.stringify(timelineConfig, null, 2);
+      
+      // Create a blob with the JSON data
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      
+      // Create a URL for the blob
+      const url = URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element to download the file
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'credit-card-collection-timeline.json';
+      
+      // Trigger the download
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Export Successful",
+        description: "Timeline configuration has been exported to JSON file",
+      });
+    } catch (error) {
+      console.error("Error exporting timeline:", error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export timeline configuration",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="container mx-auto py-6">
-        <h1 className="text-3xl font-bold mb-6">Credit Card Collection Timeline</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Credit Card Collection Timeline</h1>
+          <Button 
+            onClick={handleExportConfig}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Download size={16} />
+            Export Config
+          </Button>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="md:col-span-3">
