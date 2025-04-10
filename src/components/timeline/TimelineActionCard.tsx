@@ -18,7 +18,7 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
 }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'ACTION',
-    item: { action, dayId },
+    item: { action: { ...action, dayId }, dayId },
     collect: (monitor) => ({
       isDragging: !!monitor.isDragging(),
     }),
@@ -39,7 +39,7 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
 
   const handleClick = () => {
     if (onSelectAction) {
-      onSelectAction(action);
+      onSelectAction({...action, dayId});
     }
   };
 

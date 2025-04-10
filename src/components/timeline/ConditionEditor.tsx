@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X } from 'lucide-react';
+import { X, Mail, MessageSquare, Phone } from 'lucide-react';
 
 interface ConditionEditorProps {
   condition: Condition | null;
@@ -65,6 +65,31 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
     return baseOptions;
   };
 
+  // Function to render the correct icon based on action type
+  const renderActionIcon = (actionType: string) => {
+    switch (actionType) {
+      case 'email':
+        return <Mail size={16} className="text-blue-500 mr-2" />;
+      case 'whatsapp':
+        return <MessageSquare size={16} className="text-green-500 mr-2" />;
+      case 'sms':
+        return <Phone size={16} className="text-amber-500 mr-2" />;
+      default:
+        return null;
+    }
+  };
+
+  // Find the day for a specific action
+  const findDayForAction = (actionId: string) => {
+    // This assumes actions array has the day information as metadata
+    const action = actions.find(a => a.id === actionId);
+    if (action && action.dayId) {
+      const dayNumber = action.dayId.replace('day-', '');
+      return dayNumber === '0' ? 'Due Date' : `D${dayNumber > 0 ? '+' : ''}${dayNumber}`;
+    }
+    return 'Library';
+  };
+
   return (
     <Card className="w-full">
       <CardHeader className="pb-3">
@@ -93,8 +118,14 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
               </SelectTrigger>
               <SelectContent>
                 {actions.map((action) => (
-                  <SelectItem key={action.id} value={action.id}>
-                    {action.title}
+                  <SelectItem key={action.id} value={action.id} className="flex items-center">
+                    <div className="flex items-center">
+                      {renderActionIcon(action.type)}
+                      <span>{action.title}</span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        [{findDayForAction(action.id)}]
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -132,8 +163,14 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {actions.map((action) => (
-                    <SelectItem key={action.id} value={action.id}>
-                      {action.title}
+                    <SelectItem key={action.id} value={action.id} className="flex items-center">
+                      <div className="flex items-center">
+                        {renderActionIcon(action.type)}
+                        <span>{action.title}</span>
+                        <span className="ml-2 text-xs text-gray-500">
+                          [{findDayForAction(action.id)}]
+                        </span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
