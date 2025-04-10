@@ -14,6 +14,7 @@ interface TimelineDayProps {
   onAddAction: (dayId: string) => void;
   onDrop: (item: any, dayId: string) => void;
   isDue: boolean;
+  onSelectAction?: (action: TimelineAction) => void;
 }
 
 const TimelineDay: React.FC<TimelineDayProps> = ({ 
@@ -21,7 +22,8 @@ const TimelineDay: React.FC<TimelineDayProps> = ({
   onSelectDay, 
   onAddAction, 
   onDrop,
-  isDue 
+  isDue,
+  onSelectAction
 }) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'ACTION',
@@ -38,16 +40,16 @@ const TimelineDay: React.FC<TimelineDayProps> = ({
       : `D${day.day}`;
 
   const markerClass = cn(
-    'timeline-day-marker',
+    'timeline-day-marker relative w-8 h-8 flex items-center justify-center rounded-full mb-2 mx-auto z-10',
     {
-      'due-date': isDue,
-      'active': day.active,
-      'inactive': !day.active
+      'bg-red-500 text-white': isDue,
+      'bg-blue-500 text-white': day.active && !isDue,
+      'bg-gray-300 text-gray-600': !day.active
     }
   );
 
   return (
-    <div ref={drop} className="timeline-day">
+    <div ref={drop} className="timeline-day mb-8 relative">
       <div className={markerClass}>{dayLabel}</div>
       
       {day.active && (
@@ -79,6 +81,7 @@ const TimelineDay: React.FC<TimelineDayProps> = ({
                   key={action.id}
                   action={action}
                   dayId={day.id}
+                  onSelectAction={onSelectAction}
                 />
               ))
             )}

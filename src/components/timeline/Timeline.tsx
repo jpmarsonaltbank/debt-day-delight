@@ -113,6 +113,114 @@ const Timeline: React.FC = () => {
     setIsNewItem(false);
   };
 
+  // Handle adding a condition to an action
+  const handleAddCondition = (actionId: string) => {
+    // Find the action
+    let action: TimelineAction | null = null;
+    
+    // Look in all days
+    for (const day of days) {
+      const foundAction = day.actions.find(a => a.id === actionId);
+      if (foundAction) {
+        action = foundAction;
+        break;
+      }
+    }
+    
+    // Look in library if not found
+    if (!action) {
+      action = libraryActions.find(a => a.id === actionId) || null;
+    }
+    
+    if (action) {
+      setSelectedAction(action);
+      setSelectedCondition(null);
+      setEditMode('condition');
+      setIsNewItem(true);
+    }
+  };
+
+  // Handle editing a condition
+  const handleEditCondition = (actionId: string, conditionId: string) => {
+    // Find the action
+    let action: TimelineAction | null = null;
+    
+    // Look in all days
+    for (const day of days) {
+      const foundAction = day.actions.find(a => a.id === actionId);
+      if (foundAction) {
+        action = foundAction;
+        break;
+      }
+    }
+    
+    // Look in library if not found
+    if (!action) {
+      action = libraryActions.find(a => a.id === actionId) || null;
+    }
+    
+    if (action) {
+      const condition = action.conditions.find(c => c.id === conditionId) || null;
+      setSelectedAction(action);
+      setSelectedCondition(condition);
+      setEditMode('condition');
+      setIsNewItem(false);
+    }
+  };
+
+  // Handle saving a condition
+  const handleSaveCondition = (condition: Condition) => {
+    if (!selectedAction) return;
+    
+    const updateActionWithCondition = (action: TimelineAction): TimelineAction => {
+      const existingConditionIndex = action.conditions.findIndex(c => c.id === condition.id);
+      
+      if (existingConditionIndex >= 0) {
+        // Update existing condition
+        const updatedConditions = [...action.conditions];
+        updatedConditions[existingConditionIndex] = condition;
+        return { ...action, conditions: updatedConditions };
+      } else {
+        // Add new condition
+        return { ...action, conditions: [...action.conditions, condition] };
+      }
+    };
+    
+    // Update in days
+    let actionUpdated = false;
+    setDays(days.map(day => {
+      const actionIndex = day.actions.findIndex(a => a.id === selectedAction?.id);
+      if (actionIndex >= 0) {
+        actionUpdated = true;
+        const updatedActions = [...day.actions];
+        updatedActions[actionIndex] = updateActionWithCondition(day.actions[actionIndex]);
+        return { ...day, actions: updatedActions };
+      }
+      return day;
+    }));
+    
+    // Update in library if not found in days
+    if (!actionUpdated) {
+      setLibraryActions(libraryActions.map(action => {
+        if (action.id === selectedAction?.id) {
+          return updateActionWithCondition(action);
+        }
+        return action;
+      }));
+    }
+    
+    toast({
+      title: isNewItem ? "Condition Added" : "Condition Updated",
+      description: `Successfully ${isNewItem ? 'added' : 'updated'} condition for ${selectedAction?.title}`,
+    });
+    
+    // Reset state
+    setEditMode(null);
+    setSelectedAction(null);
+    setSelectedCondition(null);
+    setIsNewItem(false);
+  };
+
   // Handle toggling a day's active state
   const handleToggleDayActive = (dayId: string) => {
     setDays(days.map(day => {
@@ -195,7 +303,7 @@ const Timeline: React.FC = () => {
               <TabsContent value="timeline" className="pt-4">
                 <div className="bg-white rounded-lg p-6 border min-h-[600px] overflow-auto">
                   <div className="relative pb-16">
-                    <div className="timeline-connector"></div>
+                    <div className="timeline-connector absolute top-4 bottom-0 left-1/2 w-px bg-gray-200 -translate-x-1/2 z-0"></div>
                     {days.filter(day => day.active).map((day) => (
                       <TimelineDay
                         key={day.id}
@@ -204,6 +312,7 @@ const Timeline: React.FC = () => {
                         onAddAction={handleAddAction}
                         onDrop={handleDropAction}
                         isDue={day.day === 0}
+                        onSelectAction={handleSelectAction}
                       />
                     ))}
                   </div>
@@ -249,6 +358,8 @@ const Timeline: React.FC = () => {
                 onSave={handleSaveAction}
                 onClose={() => setEditMode(null)}
                 isNew={isNewItem}
+                onAddCondition={handleAddCondition}
+                onEditCondition={handleEditCondition}
               />
             </div>
           </div>
@@ -260,10 +371,7 @@ const Timeline: React.FC = () => {
               <ConditionEditor
                 condition={selectedCondition}
                 actions={getAllActions()}
-                onSave={(condition) => {
-                  // Handle condition saving here
-                  setEditMode(null);
-                }}
+                onSave={handleSaveCondition}
                 onClose={() => setEditMode(null)}
                 isNew={isNewItem}
               />
