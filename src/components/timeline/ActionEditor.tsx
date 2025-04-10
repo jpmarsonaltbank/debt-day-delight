@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { TimelineAction, ActionType, Condition } from '@/types/timeline';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,18 +7,21 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Mail, MessageSquare, Phone, X, Plus, AlertCircle } from 'lucide-react';
+import { Mail, MessageSquare, Phone, X, Plus, AlertCircle, Trash2 } from 'lucide-react';
 import { 
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import ConditionEditor from './ConditionEditor';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ActionEditorProps {
   action: TimelineAction | null;
   onSave: (action: TimelineAction) => void;
   onClose: () => void;
   isNew?: boolean;
+  allActions?: TimelineAction[];
   onAddCondition?: (actionId: string) => void;
   onEditCondition?: (actionId: string, conditionId: string) => void;
 }
@@ -28,13 +31,18 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
   onSave, 
   onClose,
   isNew = false,
+  allActions = [],
   onAddCondition,
   onEditCondition
 }) => {
-  const [title, setTitle] = React.useState(action?.title || '');
-  const [description, setDescription] = React.useState(action?.description || '');
-  const [type, setType] = React.useState<ActionType>(action?.type || 'email');
-  const [isConditionsOpen, setIsConditionsOpen] = React.useState(false);
+  const [title, setTitle] = useState(action?.title || '');
+  const [description, setDescription] = useState(action?.description || '');
+  const [type, setType] = useState<ActionType>(action?.type || 'email');
+  const [conditions, setConditions] = useState<Condition[]>(action?.conditions || []);
+  const [isConditionsOpen, setIsConditionsOpen] = useState(false);
+  const [addingCondition, setAddingCondition] = useState(false);
+  const [editingConditionId, setEditingConditionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'details' | 'conditions'>('details');
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -44,8 +52,50 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
       title,
       description,
       type,
-      conditions: action?.conditions || []
+      conditions
     });
+  };
+
+  const handleAddCondition = () => {
+    if (isNew) {
+      // If this is a new action being created, we open the condition editor directly
+      setAddingCondition(true);
+    } else if (onAddCondition && action) {
+      // If this is an existing action, we use the parent component's handler
+      onAddCondition(action.id);
+    }
+  };
+
+  const handleEditCondition = (conditionId: string) => {
+    if (isNew) {
+      // If this is a new action being created, we open the condition editor directly
+      setEditingConditionId(conditionId);
+      setAddingCondition(true);
+    } else if (onEditCondition && action) {
+      // If this is an existing action, we use the parent component's handler
+      onEditCondition(action.id, conditionId);
+    }
+  };
+
+  const handleSaveCondition = (condition: Condition) => {
+    const existingIndex = conditions.findIndex(c => c.id === condition.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing condition
+      const updatedConditions = [...conditions];
+      updatedConditions[existingIndex] = condition;
+      setConditions(updatedConditions);
+    } else {
+      // Add new condition
+      setConditions([...conditions, condition]);
+    }
+    
+    setAddingCondition(false);
+    setEditingConditionId(null);
+  };
+
+  const handleDeleteCondition = (conditionId: string) => {
+    setConditions(conditions.filter(c => c.id !== conditionId));
   };
 
   const renderConditionSummary = (condition: Condition) => {
@@ -58,7 +108,14 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
       'not_clicked': 'was not clicked'
     };
 
-    const previousAction = action?.conditions.find(c => c.previousActionId === condition.previousActionId)?.action;
+    // For new actions being created, we need to look up the previous action from allActions
+    // Since it might not have been saved yet
+    let previousAction;
+    if (isNew) {
+      previousAction = allActions.find(a => a.id === condition.previousActionId);
+    } else {
+      previousAction = action?.conditions.find(c => c.previousActionId === condition.previousActionId)?.action;
+    }
     
     return (
       <div className="text-sm">
@@ -67,6 +124,11 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
       </div>
     );
   };
+
+  // All actions available for conditions, including this one if it's already saved
+  const availableActions = isNew 
+    ? allActions
+    : [...allActions.filter(a => a.id !== action?.id), ...(action ? [action] : [])];
 
   return (
     <Card className="w-full">
@@ -78,106 +140,130 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="action-title">Title</Label>
-            <Input
-              id="action-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Action title"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="action-description">Description</Label>
-            <Textarea
-              id="action-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description (optional)"
-              rows={3}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Action Type</Label>
-            <Tabs defaultValue={type} onValueChange={(v) => setType(v as ActionType)}>
-              <TabsList className="grid grid-cols-3">
-                <TabsTrigger value="email" className="flex items-center gap-2">
-                  <Mail size={16} /> Email
-                </TabsTrigger>
-                <TabsTrigger value="whatsapp" className="flex items-center gap-2">
-                  <MessageSquare size={16} /> WhatsApp
-                </TabsTrigger>
-                <TabsTrigger value="sms" className="flex items-center gap-2">
-                  <Phone size={16} /> SMS
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          
-          {!isNew && action && (
-            <Collapsible 
-              open={isConditionsOpen} 
-              onOpenChange={setIsConditionsOpen}
-              className="border rounded-md p-2"
-            >
-              <div className="flex items-center justify-between">
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="flex items-center gap-2 p-2">
-                    <span>Conditions ({action.conditions.length})</span>
-                    {isConditionsOpen ? (
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
-                        <path d="M3.13523 6.15803C3.3241 5.95657 3.64052 5.94637 3.84197 6.13523L7.5 9.56464L11.158 6.13523C11.3595 5.94637 11.6759 5.95657 11.8648 6.15803C12.0536 6.35949 12.0434 6.67591 11.842 6.86477L7.84197 10.6148C7.64964 10.7951 7.35036 10.7951 7.15803 10.6148L3.15803 6.86477C2.95657 6.67591 2.94637 6.35949 3.13523 6.15803Z" fill="currentColor"></path>
-                      </svg>
-                    ) : (
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
-                        <path d="M6.1584 3.13508C6.35985 2.94621 6.67627 2.95642 6.86514 3.15788L10.6151 7.15788C10.7954 7.3502 10.7954 7.64949 10.6151 7.84182L6.86514 11.8418C6.67627 12.0433 6.35985 12.0535 6.1584 11.8646C5.95694 11.6757 5.94673 11.3593 6.1356 11.1579L9.565 7.49985L6.1356 3.84182C5.94673 3.64036 5.95694 3.32394 6.1584 3.13508Z" fill="currentColor"></path>
-                      </svg>
-                    )}
-                  </Button>
-                </CollapsibleTrigger>
-                {onAddCondition && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex items-center gap-1"
-                    onClick={() => onAddCondition(action.id)}
-                  >
-                    <Plus size={14} />
-                    Add
-                  </Button>
-                )}
+      
+      <Tabs defaultValue="details" value={activeTab} onValueChange={(value) => setActiveTab(value as 'details' | 'conditions')}>
+        <div className="px-6">
+          <TabsList className="w-full">
+            <TabsTrigger value="details" className="flex-1">Details</TabsTrigger>
+            <TabsTrigger value="conditions" className="flex-1">
+              Conditions {conditions.length > 0 && `(${conditions.length})`}
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        
+        <TabsContent value="details" className="pt-2">
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="action-title">Title</Label>
+                <Input
+                  id="action-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Action title"
+                />
               </div>
               
-              <CollapsibleContent className="mt-2 space-y-2">
-                {action.conditions.length === 0 ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground p-2">
-                    <AlertCircle size={14} />
-                    No conditions defined yet
-                  </div>
-                ) : (
-                  action.conditions.map((condition) => (
+              <div className="space-y-2">
+                <Label htmlFor="action-description">Description</Label>
+                <Textarea
+                  id="action-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Description (optional)"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Action Type</Label>
+                <Tabs defaultValue={type} onValueChange={(v) => setType(v as ActionType)}>
+                  <TabsList className="grid grid-cols-3">
+                    <TabsTrigger value="email" className="flex items-center gap-2">
+                      <Mail size={16} /> Email
+                    </TabsTrigger>
+                    <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+                      <MessageSquare size={16} /> WhatsApp
+                    </TabsTrigger>
+                    <TabsTrigger value="sms" className="flex items-center gap-2">
+                      <Phone size={16} /> SMS
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
+          </CardContent>
+        </TabsContent>
+        
+        <TabsContent value="conditions" className="pt-2">
+          <CardContent>
+            <div className="space-y-4">
+              {conditions.length === 0 ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground p-2">
+                  <AlertCircle size={14} />
+                  No conditions defined yet
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {conditions.map((condition) => (
                     <div 
                       key={condition.id} 
-                      className="border rounded p-2 bg-muted/20 hover:bg-muted/50 cursor-pointer"
-                      onClick={() => onEditCondition && onEditCondition(action.id, condition.id)}
+                      className="border rounded p-2 bg-muted/20 hover:bg-muted/50 cursor-pointer flex justify-between items-center"
                     >
-                      {renderConditionSummary(condition)}
+                      <div className="flex-1" onClick={() => handleEditCondition(condition.id)}>
+                        {renderConditionSummary(condition)}
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDeleteCondition(condition.id)} 
+                        className="h-8 w-8 p-0"
+                      >
+                        <Trash2 size={16} className="text-destructive" />
+                      </Button>
                     </div>
-                  ))
-                )}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-        </div>
-      </CardContent>
+                  ))}
+                </div>
+              )}
+              
+              <div className="pt-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full flex items-center justify-center gap-1"
+                  onClick={handleAddCondition}
+                >
+                  <Plus size={14} />
+                  Add Condition
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </TabsContent>
+      </Tabs>
+      
       <CardFooter className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave}>Save Action</Button>
+        <Button onClick={handleSave} disabled={!title.trim()}>Save Action</Button>
       </CardFooter>
+      
+      {/* Condition Editor Modal for New Actions */}
+      {addingCondition && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md">
+            <ConditionEditor
+              condition={editingConditionId ? conditions.find(c => c.id === editingConditionId) || null : null}
+              actions={availableActions}
+              onSave={handleSaveCondition}
+              onClose={() => {
+                setAddingCondition(false);
+                setEditingConditionId(null);
+              }}
+              isNew={!editingConditionId}
+            />
+          </div>
+        </div>
+      )}
     </Card>
   );
 };

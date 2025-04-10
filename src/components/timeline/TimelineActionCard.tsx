@@ -64,7 +64,7 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
       
       {action.conditions.length > 0 && (
         <div className="flex items-center gap-1 text-xs bg-muted/30 px-2 py-1 mt-2 rounded">
-          <GitBranch size={12} />
+          <GitBranch size={12} className="text-primary" />
           <span>{action.conditions.length} condition{action.conditions.length > 1 ? 's' : ''}</span>
         </div>
       )}

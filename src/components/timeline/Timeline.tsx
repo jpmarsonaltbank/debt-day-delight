@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -38,6 +37,17 @@ const Timeline: React.FC = () => {
   const [selectedCondition, setSelectedCondition] = useState<Condition | null>(null);
   const [editMode, setEditMode] = useState<'action' | 'condition' | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
+
+  // Get all actions from all days and library
+  const getAllActions = () => {
+    const allActions: TimelineAction[] = [];
+    days.forEach(day => {
+      day.actions.forEach(action => {
+        allActions.push(action);
+      });
+    });
+    return [...allActions, ...libraryActions];
+  };
 
   // Handle adding a new action to a day
   const handleAddAction = (dayId: string) => {
@@ -276,17 +286,6 @@ const Timeline: React.FC = () => {
     });
   };
 
-  // Get all actions from all days
-  const getAllActions = () => {
-    const allActions: TimelineAction[] = [];
-    days.forEach(day => {
-      day.actions.forEach(action => {
-        allActions.push(action);
-      });
-    });
-    return [...allActions, ...libraryActions];
-  };
-
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="container mx-auto py-6">
@@ -360,6 +359,7 @@ const Timeline: React.FC = () => {
                 isNew={isNewItem}
                 onAddCondition={handleAddCondition}
                 onEditCondition={handleEditCondition}
+                allActions={getAllActions()}
               />
             </div>
           </div>
