@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { TimelineDay as TimelineDayType, TimelineAction, Condition } from '@/types/timeline';
+import { TimelineDay as TimelineDayType, TimelineAction, Condition, Timeline as TimelineType } from '@/types/timeline';
 import TimelineDay from './TimelineDay';
 import ActionEditor from './ActionEditor';
 import ConditionEditor from './ConditionEditor';
@@ -10,11 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Download } from 'lucide-react';
+import { Download, ArrowLeft } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const Timeline: React.FC = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { id: timelineId } = useParams<{ id: string }>();
+  
   // Generate days from D-10 to D+90
   const generateInitialDays = (): TimelineDayType[] => {
     const days: TimelineDayType[] = [];
@@ -32,6 +37,7 @@ const Timeline: React.FC = () => {
   };
 
   const [days, setDays] = useState<TimelineDayType[]>(generateInitialDays());
+  const [timelineName, setTimelineName] = useState<string>('Untitled Timeline');
   const [libraryActions, setLibraryActions] = useState<TimelineAction[]>([]);
   const [selectedDay, setSelectedDay] = useState<TimelineDayType | null>(null);
   const [selectedAction, setSelectedAction] = useState<TimelineAction | null>(null);
@@ -39,12 +45,41 @@ const Timeline: React.FC = () => {
   const [editMode, setEditMode] = useState<'action' | 'condition' | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
 
+  // Load timeline data if editing existing timeline
+  useEffect(() => {
+    if (timelineId) {
+      const savedTimelines = localStorage.getItem('credit-card-timelines');
+      if (savedTimelines) {
+        try {
+          const timelines: TimelineType[] = JSON.parse(savedTimelines);
+          const timeline = timelines.find(t => t.id === timelineId);
+          
+          if (timeline) {
+            setTimelineName(timeline.name);
+            setDays(timeline.days.length > 0 ? timeline.days : generateInitialDays());
+            setLibraryActions(timeline.libraryActions || []);
+          } else {
+            // If timeline not found, redirect to list page
+            navigate('/');
+            toast({
+              title: "Timeline Not Found",
+              description: "The timeline you're trying to edit could not be found",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error loading timeline:", error);
+        }
+      }
+    }
+  }, [timelineId, navigate]);
+
   // Get all actions from all days and library
   const getAllActions = () => {
     const allActions: TimelineAction[] = [];
     days.forEach(day => {
       day.actions.forEach(action => {
-        allActions.push(action);
+        allActions.push({ ...action, dayId: day.id });
       });
     });
     return [...allActions, ...libraryActions];
@@ -71,6 +106,39 @@ const Timeline: React.FC = () => {
     setEditMode('action');
     setSelectedAction(action);
     setIsNewItem(false);
+  };
+
+  // Handle cloning an action
+  const handleCloneAction = (action: TimelineAction) => {
+    const clonedAction: TimelineAction = {
+      ...action,
+      id: `action-${Date.now()}`,
+      name: `${action.name || action.subject} (Copy)`,
+      conditions: [] // Don't clone conditions
+    };
+    
+    if (action.dayId) {
+      // Clone action in its day
+      setDays(days.map(day => {
+        if (day.id === action.dayId) {
+          return { ...day, actions: [...day.actions, clonedAction] };
+        }
+        return day;
+      }));
+      
+      toast({
+        title: "Action Cloned",
+        description: `Successfully cloned action within the day`,
+      });
+    } else {
+      // Clone action in library
+      setLibraryActions([...libraryActions, clonedAction]);
+      
+      toast({
+        title: "Library Action Cloned",
+        description: `Successfully cloned action in library`,
+      });
+    }
   };
 
   // Handle saving an action
@@ -287,11 +355,64 @@ const Timeline: React.FC = () => {
     });
   };
 
+  // Save timeline to localStorage
+  const saveTimeline = () => {
+    if (!timelineId) return;
+    
+    const savedTimelines = localStorage.getItem('credit-card-timelines');
+    let timelines: TimelineType[] = [];
+    
+    if (savedTimelines) {
+      try {
+        timelines = JSON.parse(savedTimelines);
+      } catch (error) {
+        console.error("Error parsing timelines:", error);
+      }
+    }
+    
+    const updatedTimeline: TimelineType = {
+      id: timelineId,
+      name: timelineName,
+      days,
+      libraryActions,
+      createdAt: new Date().toISOString()
+    };
+    
+    const existingIndex = timelines.findIndex(t => t.id === timelineId);
+    
+    if (existingIndex >= 0) {
+      // Update existing timeline
+      timelines[existingIndex] = updatedTimeline;
+    } else {
+      // Add new timeline
+      timelines.push(updatedTimeline);
+    }
+    
+    localStorage.setItem('credit-card-timelines', JSON.stringify(timelines));
+    
+    toast({
+      title: "Timeline Saved",
+      description: "Your timeline has been saved successfully",
+    });
+  };
+
+  // Auto-save when timeline changes
+  useEffect(() => {
+    if (timelineId) {
+      const debounce = setTimeout(() => {
+        saveTimeline();
+      }, 1000);
+      
+      return () => clearTimeout(debounce);
+    }
+  }, [days, libraryActions, timelineName]);
+
   // Export timeline configuration as JSON
   const handleExportConfig = () => {
     try {
       // Create the configuration object
       const timelineConfig = {
+        name: timelineName,
         days: days.filter(day => day.active),
         libraryActions
       };
@@ -308,7 +429,7 @@ const Timeline: React.FC = () => {
       // Create a temporary anchor element to download the file
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'credit-card-collection-timeline.json';
+      a.download = `${timelineName.replace(/\s+/g, '-').toLowerCase()}.json`;
       
       // Trigger the download
       document.body.appendChild(a);
@@ -336,7 +457,19 @@ const Timeline: React.FC = () => {
     <DndProvider backend={HTML5Backend}>
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Credit Card Collection Timeline</h1>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/')}
+              className="flex items-center gap-1"
+            >
+              <ArrowLeft size={16} />
+              Back to list
+            </Button>
+            
+            <h1 className="text-3xl font-bold">Credit Card Collection Timeline</h1>
+          </div>
           <Button 
             onClick={handleExportConfig}
             variant="outline"
@@ -345,6 +478,17 @@ const Timeline: React.FC = () => {
             <Download size={16} />
             Export Config
           </Button>
+        </div>
+        
+        <div className="mb-6">
+          <Label htmlFor="timeline-name">Timeline Name</Label>
+          <Input 
+            id="timeline-name" 
+            value={timelineName} 
+            onChange={(e) => setTimelineName(e.target.value)} 
+            className="max-w-md"
+            placeholder="Enter timeline name"
+          />
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -368,6 +512,7 @@ const Timeline: React.FC = () => {
                         onDrop={handleDropAction}
                         isDue={day.day === 0}
                         onSelectAction={handleSelectAction}
+                        onCloneAction={handleCloneAction}
                       />
                     ))}
                   </div>
@@ -401,6 +546,7 @@ const Timeline: React.FC = () => {
               actions={libraryActions}
               onAddAction={handleAddLibraryAction}
               onSelectAction={handleSelectAction}
+              onCloneAction={handleCloneAction}
             />
           </div>
         </div>

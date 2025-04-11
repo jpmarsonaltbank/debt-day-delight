@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Mail, MessageSquare, Phone, X, Plus, AlertCircle, Trash2 } from 'lucide-react';
+import { Mail, MessageSquare, Phone, X, Plus, AlertCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { 
   Collapsible,
   CollapsibleContent,
@@ -35,8 +35,9 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
   onAddCondition,
   onEditCondition
 }) => {
-  const [title, setTitle] = useState(action?.title || '');
-  const [description, setDescription] = useState(action?.description || '');
+  const [name, setName] = useState(action?.name || '');
+  const [subject, setSubject] = useState(action?.subject || '');
+  const [message, setMessage] = useState(action?.message || '');
   const [type, setType] = useState<ActionType>(action?.type || 'email');
   const [conditions, setConditions] = useState<Condition[]>(action?.conditions || []);
   const [isConditionsOpen, setIsConditionsOpen] = useState(false);
@@ -45,12 +46,13 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
   const [activeTab, setActiveTab] = useState<'details' | 'conditions'>('details');
 
   const handleSave = () => {
-    if (!title.trim()) return;
+    if ((!subject.trim() && type !== 'negativar') || !name.trim()) return;
     
     onSave({
       id: action?.id || `action-${Date.now()}`,
-      title,
-      description,
+      name,
+      subject,
+      message,
       type,
       conditions
     });
@@ -119,8 +121,8 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
     
     return (
       <div className="text-sm">
-        If <span className="font-medium">{previousAction?.title || 'Previous Action'}</span> {conditionTypeMap[condition.type]}, 
-        then <span className="font-medium">{condition.action.title}</span>
+        If <span className="font-medium">{previousAction?.name || previousAction?.subject || 'Previous Action'}</span> {conditionTypeMap[condition.type]}, 
+        then <span className="font-medium">{condition.action.name || condition.action.subject}</span>
       </div>
     );
   };
@@ -129,6 +131,9 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
   const availableActions = isNew 
     ? allActions
     : [...allActions.filter(a => a.id !== action?.id), ...(action ? [action] : [])];
+
+  // Display field logic - only show subject and message fields for email, whatsapp, and sms
+  const showContentFields = type !== 'negativar';
 
   return (
     <Card className="w-full">
@@ -155,30 +160,19 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
           <CardContent>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="action-title">Title</Label>
+                <Label htmlFor="action-name">Action Name</Label>
                 <Input
-                  id="action-title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Action title"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="action-description">Description</Label>
-                <Textarea
-                  id="action-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Description (optional)"
-                  rows={3}
+                  id="action-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Internal name for reference"
                 />
               </div>
               
               <div className="space-y-2">
                 <Label>Action Type</Label>
                 <Tabs defaultValue={type} onValueChange={(v) => setType(v as ActionType)}>
-                  <TabsList className="grid grid-cols-3">
+                  <TabsList className="grid grid-cols-4">
                     <TabsTrigger value="email" className="flex items-center gap-2">
                       <Mail size={16} /> Email
                     </TabsTrigger>
@@ -188,9 +182,37 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
                     <TabsTrigger value="sms" className="flex items-center gap-2">
                       <Phone size={16} /> SMS
                     </TabsTrigger>
+                    <TabsTrigger value="negativar" className="flex items-center gap-2">
+                      <AlertTriangle size={16} /> Negativar
+                    </TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
+              
+              {showContentFields && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="action-subject">Subject</Label>
+                    <Input
+                      id="action-subject"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="Subject line"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="action-message">Message</Label>
+                    <Textarea
+                      id="action-message"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Message content"
+                      rows={3}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </TabsContent>
@@ -244,7 +266,12 @@ const ActionEditor: React.FC<ActionEditorProps> = ({
       
       <CardFooter className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} disabled={!title.trim()}>Save Action</Button>
+        <Button 
+          onClick={handleSave} 
+          disabled={(type !== 'negativar' && !subject.trim()) || !name.trim()}
+        >
+          Save Action
+        </Button>
       </CardFooter>
       
       {/* Condition Editor Modal for New Actions */}

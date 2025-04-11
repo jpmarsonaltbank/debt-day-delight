@@ -1,5 +1,6 @@
 
-export type ActionType = 'email' | 'whatsapp' | 'sms';
+export type ActionType = 'email' | 'whatsapp' | 'sms' | 'negativar';
+
 export type ConditionType = 'delivered' | 'not_delivered' | 'opened' | 'not_opened' | 'clicked' | 'not_clicked';
 
 export interface Condition {
@@ -12,9 +13,11 @@ export interface Condition {
 export interface TimelineAction {
   id: string;
   type: ActionType;
-  title: string;
-  description: string;
+  name: string;
+  subject: string;
+  message: string;
   conditions: Condition[];
+  dayId?: string;
 }
 
 export interface TimelineDay {
@@ -24,8 +27,17 @@ export interface TimelineDay {
   active: boolean;
 }
 
+export interface Timeline {
+  id: string;
+  name: string;
+  days: TimelineDay[];
+  libraryActions: TimelineAction[];
+  createdAt: string;
+}
+
 export interface TimelineState {
   days: TimelineDay[];
   selectedDay: TimelineDay | null;
   selectedAction: TimelineAction | null;
+  timelineName: string;
 }

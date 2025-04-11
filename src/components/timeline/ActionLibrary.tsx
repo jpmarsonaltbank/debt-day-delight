@@ -11,12 +11,14 @@ interface ActionLibraryProps {
   actions: TimelineAction[];
   onAddAction: () => void;
   onSelectAction: (action: TimelineAction) => void;
+  onCloneAction?: (action: TimelineAction) => void;
 }
 
 const ActionLibrary: React.FC<ActionLibraryProps> = ({ 
   actions, 
   onAddAction, 
-  onSelectAction 
+  onSelectAction,
+  onCloneAction
 }) => {
   return (
     <Card className="h-full">
@@ -49,13 +51,13 @@ const ActionLibrary: React.FC<ActionLibraryProps> = ({
           <div className="space-y-2">
             {actions.map((action) => (
               <div 
-                key={action.id} 
-                onClick={() => onSelectAction(action)}
-                className="cursor-pointer"
+                key={action.id}
               >
                 <TimelineActionCard 
                   action={action}
                   dayId=""
+                  onSelectAction={onSelectAction}
+                  onCloneAction={onCloneAction}
                 />
               </div>
             ))}

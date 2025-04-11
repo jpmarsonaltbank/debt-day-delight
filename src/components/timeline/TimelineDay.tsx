@@ -1,93 +1,92 @@
 
 import React from 'react';
-import { TimelineDay as TimelineDayType, TimelineAction } from '@/types/timeline';
-import TimelineActionCard from './TimelineActionCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TimelineDay, TimelineAction } from '@/types/timeline';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import { useDrop } from 'react-dnd';
-import { cn } from '@/lib/utils';
+import TimelineActionCard from './TimelineActionCard';
+import { Plus } from 'lucide-react';
 
 interface TimelineDayProps {
-  day: TimelineDayType;
-  onSelectDay: (day: TimelineDayType) => void;
+  day: TimelineDay;
+  onSelectDay: (day: TimelineDay) => void;
   onAddAction: (dayId: string) => void;
-  onDrop: (item: any, dayId: string) => void;
-  isDue: boolean;
+  onDrop: (item: any, targetDayId: string) => void;
+  isDue?: boolean;
   onSelectAction?: (action: TimelineAction) => void;
+  onCloneAction?: (action: TimelineAction) => void;
 }
 
-const TimelineDay: React.FC<TimelineDayProps> = ({ 
-  day, 
-  onSelectDay, 
-  onAddAction, 
+const TimelineDay: React.FC<TimelineDayProps> = ({
+  day,
+  onSelectDay,
+  onAddAction,
   onDrop,
-  isDue,
-  onSelectAction
+  isDue = false,
+  onSelectAction,
+  onCloneAction
 }) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'ACTION',
-    drop: (item) => onDrop(item, day.id),
+    drop: (item: any) => {
+      onDrop(item, day.id);
+    },
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
     }),
   }));
 
-  const dayLabel = day.day === 0 
-    ? 'Due Date' 
-    : day.day > 0 
-      ? `D+${day.day}` 
-      : `D${day.day}`;
-
-  const markerClass = cn(
-    'timeline-day-marker relative w-8 h-8 flex items-center justify-center rounded-full mb-2 mx-auto z-10',
-    {
-      'bg-red-500 text-white': isDue,
-      'bg-blue-500 text-white': day.active && !isDue,
-      'bg-gray-300 text-gray-600': !day.active
-    }
-  );
+  const handleAddAction = () => {
+    onAddAction(day.id);
+  };
 
   return (
-    <div ref={drop} className="timeline-day mb-8 relative">
-      <div className={markerClass}>{dayLabel}</div>
+    <div className="relative mb-8">
+      <div className="flex items-center justify-center mb-4">
+        <div className="bg-primary text-white rounded-full px-4 py-1 text-sm font-medium">
+          {isDue ? 'Due Date' : day.day > 0 ? `D+${day.day}` : `D${day.day}`}
+        </div>
+      </div>
       
-      {day.active && (
-        <Card className={cn(
-          "w-64 mx-auto transition-all", 
-          isOver ? "ring-2 ring-primary/50" : ""
-        )}>
-          <CardHeader className="p-3 pb-0">
-            <CardTitle className="text-sm flex justify-between items-center">
-              <span>{dayLabel}</span>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="h-7 w-7 p-0"
-                onClick={() => onAddAction(day.id)}
-              >
-                <Plus size={16} />
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 space-y-2">
-            {day.actions.length === 0 ? (
-              <div className="text-xs text-gray-400 text-center p-2">
-                Drop actions here or click + to add
-              </div>
-            ) : (
-              day.actions.map((action) => (
-                <TimelineActionCard 
-                  key={action.id}
-                  action={action}
-                  dayId={day.id}
-                  onSelectAction={onSelectAction}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <div 
+        ref={drop}
+        className={`p-4 border rounded-lg transition-colors ${isOver ? 'bg-primary/10' : 'bg-background'}`}
+      >
+        {day.actions.length === 0 ? (
+          <div className="text-center py-4 text-muted-foreground">
+            <p className="mb-2">No actions for this day</p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleAddAction}
+              className="flex items-center mx-auto gap-1"
+            >
+              <Plus size={14} />
+              Add Action
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {day.actions.map((action) => (
+              <TimelineActionCard 
+                key={action.id} 
+                action={action} 
+                dayId={day.id}
+                onSelectAction={onSelectAction}
+                onCloneAction={onCloneAction}
+              />
+            ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleAddAction}
+              className="w-full text-muted-foreground mt-2 flex items-center justify-center gap-1 border border-dashed"
+            >
+              <Plus size={14} />
+              Add Another Action
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

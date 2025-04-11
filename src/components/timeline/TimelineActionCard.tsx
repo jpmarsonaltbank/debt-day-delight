@@ -3,18 +3,22 @@ import React from 'react';
 import { TimelineAction } from '@/types/timeline';
 import { useDrag } from 'react-dnd';
 import { cn } from '@/lib/utils';
-import { Mail, MessageSquare, Phone, GitBranch } from 'lucide-react';
+import { Mail, MessageSquare, Phone, GitBranch, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Copy } from 'lucide-react';
 
 interface TimelineActionCardProps {
   action: TimelineAction;
   dayId: string;
   onSelectAction?: (action: TimelineAction) => void;
+  onCloneAction?: (action: TimelineAction) => void;
 }
 
 const TimelineActionCard: React.FC<TimelineActionCardProps> = ({ 
   action, 
   dayId,
-  onSelectAction 
+  onSelectAction,
+  onCloneAction
 }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'ACTION',
@@ -32,6 +36,8 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
         return <MessageSquare size={16} className="text-green-500" />;
       case 'sms':
         return <Phone size={16} className="text-amber-500" />;
+      case 'negativar':
+        return <AlertTriangle size={16} className="text-red-500" />;
       default:
         return null;
     }
@@ -42,12 +48,19 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
       onSelectAction({...action, dayId});
     }
   };
+  
+  const handleClone = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the card click event
+    if (onCloneAction) {
+      onCloneAction({...action, dayId});
+    }
+  };
 
   return (
     <div
       ref={drag}
       className={cn(
-        "timeline-action p-2 bg-white rounded-md border shadow-sm cursor-move",
+        "timeline-action p-2 bg-white rounded-md border shadow-sm cursor-move relative",
         isDragging ? "opacity-50" : "",
         action.conditions.length > 0 ? "border-dashed border-primary/50" : ""
       )}
@@ -55,11 +68,27 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
     >
       <div className="flex items-center gap-2">
         {renderIcon()}
-        <span className="text-sm font-medium">{action.title}</span>
+        <span className="text-sm font-medium">{action.name || action.subject}</span>
+        
+        {onCloneAction && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 w-6 p-0 ml-auto"
+            onClick={handleClone}
+            title="Clone action"
+          >
+            <Copy size={14} />
+          </Button>
+        )}
       </div>
       
-      {action.description && (
-        <div className="text-xs text-gray-500 mt-1">{action.description}</div>
+      {action.subject && (
+        <div className="text-xs font-medium mt-1">{action.subject}</div>
+      )}
+      
+      {action.message && (
+        <div className="text-xs text-gray-500 mt-1">{action.message}</div>
       )}
       
       {action.conditions.length > 0 && (
