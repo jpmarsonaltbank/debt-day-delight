@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { type TimelineDay as TimelineDayType, TimelineAction } from '@/types/timeline';
+import type { TimelineDay } from '@/types/timeline';
+import { TimelineAction } from '@/types/timeline';
 import { Button } from '@/components/ui/button';
 import { useDrop } from 'react-dnd';
 import TimelineActionCard from './TimelineActionCard';
 import { Plus } from 'lucide-react';
 
 interface TimelineDayProps {
-  day: TimelineDayType;
-  onSelectDay: (day: TimelineDayType) => void;
+  day: TimelineDay;
+  onSelectDay: (day: TimelineDay) => void;
   onAddAction: (dayId: string) => void;
   onDrop: (item: any, targetDayId: string) => void;
   isDue?: boolean;

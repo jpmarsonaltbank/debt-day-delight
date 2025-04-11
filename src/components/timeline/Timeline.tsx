@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Download, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Dialog } from '@/components/ui/dialog';
 
 const Timeline: React.FC = () => {
   const { toast } = useToast();
@@ -43,6 +44,13 @@ const Timeline: React.FC = () => {
   const [selectedCondition, setSelectedCondition] = useState<Condition | null>(null);
   const [editMode, setEditMode] = useState<'action' | 'condition' | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
+
+  const formatDayLabel = (day: TimelineDayType | null): string => {
+    if (!day) return '';
+    
+    if (day.day === 0) return 'Due Date';
+    return day.day > 0 ? `D+${day.day}` : `D${day.day}`;
+  };
 
   useEffect(() => {
     const savedLibraryActions = localStorage.getItem('credit-card-shared-library');
@@ -505,7 +513,7 @@ const Timeline: React.FC = () => {
                           onCheckedChange={() => handleToggleDayActive(day.id)}
                         />
                         <Label htmlFor={`day-${day.id}`}>
-                          {day.day === 0 ? 'Due Date' : day.day > 0 ? `D+${day.day}` : `D${day.day}`}
+                          {formatDayLabel(day)}
                         </Label>
                       </div>
                     ))}
@@ -526,23 +534,31 @@ const Timeline: React.FC = () => {
         </div>
         
         {editMode === 'action' && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="w-full max-w-md">
-              <ActionEditor
-                action={selectedAction}
-                onSave={handleSaveAction}
-                onClose={() => setEditMode(null)}
-                isNew={isNewItem}
-                onAddCondition={handleAddCondition}
-                onEditCondition={handleEditCondition}
-                allActions={getAllActions()}
-              />
-            </div>
-          </div>
+          <Dialog open={editMode === 'action'} onOpenChange={() => setEditMode(null)}>
+            <ActionEditor
+              action={selectedAction}
+              onSave={handleSaveAction}
+              onClose={() => setEditMode(null)}
+              isNew={isNewItem}
+              onAddCondition={handleAddCondition}
+              onEditCondition={handleEditCondition}
+              allActions={getAllActions()}
+              dayLabel={formatDayLabel(selectedDay)}
+            />
+          </Dialog>
         )}
         
         {editMode === 'condition' && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Dialog open={editMode === 'condition'} onOpenChange={() => setEditMode(null)}>
+            <ActionEditor
+              action={selectedAction}
+              onSave={handleSaveAction}
+              onClose={() => setEditMode(null)}
+              isNew={isNewItem}
+              onAddCondition={handleAddCondition}
+              onEditCondition={handleEditCondition}
+              allActions={getAllActions()}
+            />
             <div className="w-full max-w-md">
               <ConditionEditor
                 condition={selectedCondition}
@@ -552,7 +568,7 @@ const Timeline: React.FC = () => {
                 isNew={isNewItem}
               />
             </div>
-          </div>
+          </Dialog>
         )}
       </div>
     </DndProvider>
