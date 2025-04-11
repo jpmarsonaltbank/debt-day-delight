@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Mail, MessageSquare, Phone } from 'lucide-react';
+import { X, Mail, MessageSquare, Phone, AlertTriangle } from 'lucide-react';
 
 interface ConditionEditorProps {
   condition: Condition | null;
@@ -74,6 +74,8 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
         return <MessageSquare size={16} className="text-green-500 mr-2" />;
       case 'sms':
         return <Phone size={16} className="text-amber-500 mr-2" />;
+      case 'negativar':
+        return <AlertTriangle size={16} className="text-red-500 mr-2" />;
       default:
         return null;
     }
@@ -85,7 +87,8 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
     const action = actions.find(a => a.id === actionId);
     if (action && action.dayId) {
       const dayNumber = action.dayId.replace('day-', '');
-      return dayNumber === '0' ? 'Due Date' : `D${dayNumber > 0 ? '+' : ''}${dayNumber}`;
+      // Convert to number before comparison
+      return dayNumber === '0' ? 'Due Date' : `D${parseInt(dayNumber) > 0 ? '+' : ''}${dayNumber}`;
     }
     return 'Library';
   };
@@ -121,7 +124,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
                   <SelectItem key={action.id} value={action.id} className="flex items-center">
                     <div className="flex items-center">
                       {renderActionIcon(action.type)}
-                      <span>{action.title}</span>
+                      <span>{action.name || action.subject}</span>
                       <span className="ml-2 text-xs text-gray-500">
                         [{findDayForAction(action.id)}]
                       </span>
@@ -166,7 +169,7 @@ const ConditionEditor: React.FC<ConditionEditorProps> = ({
                     <SelectItem key={action.id} value={action.id} className="flex items-center">
                       <div className="flex items-center">
                         {renderActionIcon(action.type)}
-                        <span>{action.title}</span>
+                        <span>{action.name || action.subject}</span>
                         <span className="ml-2 text-xs text-gray-500">
                           [{findDayForAction(action.id)}]
                         </span>

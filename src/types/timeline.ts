@@ -1,4 +1,3 @@
-
 export type ActionType = 'email' | 'whatsapp' | 'sms' | 'negativar';
 
 export type ConditionType = 'delivered' | 'not_delivered' | 'opened' | 'not_opened' | 'clicked' | 'not_clicked';
@@ -18,6 +17,7 @@ export interface TimelineAction {
   message: string;
   conditions: Condition[];
   dayId?: string;
+  title?: string; // Adding optional title property for backward compatibility
 }
 
 export interface TimelineDay {
