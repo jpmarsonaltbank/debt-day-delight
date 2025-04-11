@@ -18,32 +18,41 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { getTimelines, saveTimeline, deleteTimeline, migrateFromLocalStorage } from '@/lib/db';
 
 const TimelineList = () => {
   const { toast } = useToast();
   const [timelines, setTimelines] = useState<Timeline[]>([]);
   const [newTimelineName, setNewTimelineName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Load timelines from localStorage on component mount
+  // Load timelines and migrate data on component mount
   useEffect(() => {
-    const savedTimelines = localStorage.getItem('credit-card-timelines');
-    if (savedTimelines) {
+    const loadTimelines = async () => {
       try {
-        setTimelines(JSON.parse(savedTimelines));
+        // Attempt to migrate data from localStorage first time
+        await migrateFromLocalStorage();
+        
+        // Then load timelines from IndexedDB
+        const loadedTimelines = await getTimelines();
+        setTimelines(loadedTimelines);
       } catch (error) {
         console.error('Error loading timelines:', error);
-        setTimelines([]);
+        toast({
+          title: "Error Loading Timelines",
+          description: "There was a problem loading your timelines. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+    
+    loadTimelines();
   }, []);
 
-  // Save timelines to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('credit-card-timelines', JSON.stringify(timelines));
-  }, [timelines]);
-
-  const handleCreateTimeline = () => {
+  const handleCreateTimeline = async () => {
     if (!newTimelineName.trim()) {
       toast({
         title: "Error",
@@ -53,47 +62,77 @@ const TimelineList = () => {
       return;
     }
 
-    const newTimeline: Timeline = {
-      id: `timeline-${Date.now()}`,
-      name: newTimelineName,
-      days: [],
-      libraryActions: [],
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const newTimeline: Timeline = {
+        id: `timeline-${Date.now()}`,
+        name: newTimelineName,
+        days: [],
+        libraryActions: [],
+        createdAt: new Date().toISOString()
+      };
 
-    setTimelines([...timelines, newTimeline]);
-    setNewTimelineName('');
-    setIsCreating(false);
+      await saveTimeline(newTimeline);
+      setTimelines([...timelines, newTimeline]);
+      setNewTimelineName('');
+      setIsCreating(false);
 
-    toast({
-      title: "Timeline Created",
-      description: `"${newTimelineName}" has been created successfully`,
-    });
+      toast({
+        title: "Timeline Created",
+        description: `"${newTimelineName}" has been created successfully`,
+      });
+    } catch (error) {
+      console.error('Error creating timeline:', error);
+      toast({
+        title: "Error Creating Timeline",
+        description: "There was a problem creating your timeline. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDeleteTimeline = (id: string) => {
-    setTimelines(timelines.filter(timeline => timeline.id !== id));
-    
-    toast({
-      title: "Timeline Deleted",
-      description: "The timeline has been deleted successfully",
-    });
+  const handleDeleteTimeline = async (id: string) => {
+    try {
+      await deleteTimeline(id);
+      setTimelines(timelines.filter(timeline => timeline.id !== id));
+      
+      toast({
+        title: "Timeline Deleted",
+        description: "The timeline has been deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting timeline:', error);
+      toast({
+        title: "Error Deleting Timeline",
+        description: "There was a problem deleting your timeline. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleDuplicateTimeline = (timeline: Timeline) => {
-    const duplicatedTimeline: Timeline = {
-      ...JSON.parse(JSON.stringify(timeline)),
-      id: `timeline-${Date.now()}`,
-      name: `${timeline.name} (Copy)`,
-      createdAt: new Date().toISOString()
-    };
+  const handleDuplicateTimeline = async (timeline: Timeline) => {
+    try {
+      const duplicatedTimeline: Timeline = {
+        ...JSON.parse(JSON.stringify(timeline)),
+        id: `timeline-${Date.now()}`,
+        name: `${timeline.name} (Copy)`,
+        createdAt: new Date().toISOString()
+      };
 
-    setTimelines([...timelines, duplicatedTimeline]);
-    
-    toast({
-      title: "Timeline Duplicated",
-      description: `"${timeline.name}" has been duplicated successfully`,
-    });
+      await saveTimeline(duplicatedTimeline);
+      setTimelines([...timelines, duplicatedTimeline]);
+      
+      toast({
+        title: "Timeline Duplicated",
+        description: `"${timeline.name}" has been duplicated successfully`,
+      });
+    } catch (error) {
+      console.error('Error duplicating timeline:', error);
+      toast({
+        title: "Error Duplicating Timeline",
+        description: "There was a problem duplicating your timeline. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -128,79 +167,85 @@ const TimelineList = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {timelines.length === 0 ? (
-          <div className="col-span-full text-center py-12 bg-muted/30 rounded-lg">
-            <p className="text-muted-foreground mb-4">No timelines created yet</p>
-            <Button onClick={() => setIsCreating(true)} className="flex mx-auto items-center gap-2">
-              <Plus size={16} />
-              Create your first timeline
-            </Button>
-          </div>
-        ) : (
-          timelines.map((timeline) => (
-            <Card key={timeline.id}>
-              <CardHeader>
-                <CardTitle>{timeline.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Created: {new Date(timeline.createdAt).toLocaleDateString()}
-                </p>
-                <p className="text-sm mt-2">
-                  {timeline.days.filter(d => d.active).length} active days
-                </p>
-                <p className="text-sm">
-                  {timeline.days.reduce((total, day) => total + day.actions.length, 0) + timeline.libraryActions.length} actions
-                </p>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <div className="flex gap-2">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" className="gap-1">
-                        <Trash2 size={14} />
-                        Delete
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Timeline</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete "{timeline.name}"? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteTimeline(timeline.id)}>
+      {loading ? (
+        <div className="col-span-full text-center py-12 bg-muted/30 rounded-lg">
+          <p className="text-muted-foreground">Loading timelines...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {timelines.length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-muted/30 rounded-lg">
+              <p className="text-muted-foreground mb-4">No timelines created yet</p>
+              <Button onClick={() => setIsCreating(true)} className="flex mx-auto items-center gap-2">
+                <Plus size={16} />
+                Create your first timeline
+              </Button>
+            </div>
+          ) : (
+            timelines.map((timeline) => (
+              <Card key={timeline.id}>
+                <CardHeader>
+                  <CardTitle>{timeline.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Created: {new Date(timeline.createdAt).toLocaleDateString()}
+                  </p>
+                  <p className="text-sm mt-2">
+                    {timeline.days.filter(d => d.active).length} active days
+                  </p>
+                  <p className="text-sm">
+                    {timeline.days.reduce((total, day) => total + day.actions.length, 0)} actions
+                  </p>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <div className="flex gap-2">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="gap-1">
+                          <Trash2 size={14} />
                           Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Timeline</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{timeline.name}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteTimeline(timeline.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => handleDuplicateTimeline(timeline)}
+                    >
+                      <Copy size={14} />
+                      Clone
+                    </Button>
+                  </div>
                   
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-1"
-                    onClick={() => handleDuplicateTimeline(timeline)}
-                  >
-                    <Copy size={14} />
-                    Clone
+                  <Button asChild size="sm" className="gap-1">
+                    <Link to={`/timeline/${timeline.id}`}>
+                      <FileEdit size={14} />
+                      Edit
+                    </Link>
                   </Button>
-                </div>
-                
-                <Button asChild size="sm" className="gap-1">
-                  <Link to={`/timeline/${timeline.id}`}>
-                    <FileEdit size={14} />
-                    Edit
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))
-        )}
-      </div>
+                </CardFooter>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 };

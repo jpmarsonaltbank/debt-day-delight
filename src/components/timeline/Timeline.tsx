@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -14,7 +15,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Download, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Dialog } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { getTimeline, saveTimeline, getLibraryActions, saveLibraryAction, saveLibraryActions } from '@/lib/db';
 
 const Timeline: React.FC = () => {
   const { toast } = useToast();
@@ -44,6 +46,7 @@ const Timeline: React.FC = () => {
   const [selectedCondition, setSelectedCondition] = useState<Condition | null>(null);
   const [editMode, setEditMode] = useState<'action' | 'condition' | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const formatDayLabel = (day: TimelineDayType | null): string => {
     if (!day) return '';
@@ -53,24 +56,24 @@ const Timeline: React.FC = () => {
   };
 
   useEffect(() => {
-    const savedLibraryActions = localStorage.getItem('credit-card-shared-library');
-    if (savedLibraryActions) {
+    const loadLibraryActions = async () => {
       try {
-        const actions: TimelineAction[] = JSON.parse(savedLibraryActions);
+        const actions = await getLibraryActions();
         setLibraryActions(actions);
       } catch (error) {
         console.error("Error loading shared library actions:", error);
       }
-    }
+    };
+    
+    loadLibraryActions();
   }, []);
 
   useEffect(() => {
     if (timelineId) {
-      const savedTimelines = localStorage.getItem('credit-card-timelines');
-      if (savedTimelines) {
+      const loadTimeline = async () => {
         try {
-          const timelines: TimelineType[] = JSON.parse(savedTimelines);
-          const timeline = timelines.find(t => t.id === timelineId);
+          setLoading(true);
+          const timeline = await getTimeline(timelineId);
           
           if (timeline) {
             setTimelineName(timeline.name);
@@ -85,8 +88,17 @@ const Timeline: React.FC = () => {
           }
         } catch (error) {
           console.error("Error loading timeline:", error);
+          toast({
+            title: "Error Loading Timeline",
+            description: "There was a problem loading your timeline. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setLoading(false);
         }
-      }
+      };
+      
+      loadTimeline();
     }
   }, [timelineId, navigate]);
 
@@ -120,7 +132,7 @@ const Timeline: React.FC = () => {
     setIsNewItem(false);
   };
 
-  const handleCloneAction = (action: TimelineAction) => {
+  const handleCloneAction = async (action: TimelineAction) => {
     const clonedAction: TimelineAction = {
       ...action,
       id: `action-${Date.now()}`,
@@ -141,18 +153,26 @@ const Timeline: React.FC = () => {
         description: `Successfully cloned action within the day`,
       });
     } else {
-      setLibraryActions([...libraryActions, clonedAction]);
-      
-      localStorage.setItem('credit-card-shared-library', JSON.stringify([...libraryActions, clonedAction]));
-      
-      toast({
-        title: "Library Action Cloned",
-        description: `Successfully cloned action in library`,
-      });
+      try {
+        await saveLibraryAction(clonedAction);
+        setLibraryActions([...libraryActions, clonedAction]);
+        
+        toast({
+          title: "Library Action Cloned",
+          description: `Successfully cloned action in library`,
+        });
+      } catch (error) {
+        console.error("Error cloning library action:", error);
+        toast({
+          title: "Error Cloning Action",
+          description: "There was a problem cloning the action. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const handleSaveAction = (action: TimelineAction) => {
+  const handleSaveAction = async (action: TimelineAction) => {
     if (selectedDay) {
       setDays(days.map(day => {
         if (day.id === selectedDay.id) {
@@ -174,24 +194,31 @@ const Timeline: React.FC = () => {
         description: `Successfully ${isNewItem ? 'added' : 'updated'} action for day ${selectedDay.day === 0 ? 'Due Date' : selectedDay.day > 0 ? `D+${selectedDay.day}` : `D${selectedDay.day}`}`,
       });
     } else {
-      const existingActionIndex = libraryActions.findIndex(a => a.id === action.id);
-      
-      if (existingActionIndex >= 0) {
-        const updatedActions = [...libraryActions];
-        updatedActions[existingActionIndex] = action;
-        setLibraryActions(updatedActions);
+      try {
+        await saveLibraryAction(action);
         
-        localStorage.setItem('credit-card-shared-library', JSON.stringify(updatedActions));
-      } else {
-        setLibraryActions([...libraryActions, action]);
+        const existingActionIndex = libraryActions.findIndex(a => a.id === action.id);
         
-        localStorage.setItem('credit-card-shared-library', JSON.stringify([...libraryActions, action]));
+        if (existingActionIndex >= 0) {
+          const updatedActions = [...libraryActions];
+          updatedActions[existingActionIndex] = action;
+          setLibraryActions(updatedActions);
+        } else {
+          setLibraryActions([...libraryActions, action]);
+        }
+        
+        toast({
+          title: isNewItem ? "Library Action Added" : "Library Action Updated",
+          description: `Successfully ${isNewItem ? 'added' : 'updated'} action in library`,
+        });
+      } catch (error) {
+        console.error("Error saving library action:", error);
+        toast({
+          title: "Error Saving Action",
+          description: "There was a problem saving the action. Please try again.",
+          variant: "destructive",
+        });
       }
-      
-      toast({
-        title: isNewItem ? "Library Action Added" : "Library Action Updated",
-        description: `Successfully ${isNewItem ? 'added' : 'updated'} action in library`,
-      });
     }
     
     setEditMode(null);
@@ -246,7 +273,7 @@ const Timeline: React.FC = () => {
     }
   };
 
-  const handleSaveCondition = (condition: Condition) => {
+  const handleSaveCondition = async (condition: Condition) => {
     if (!selectedAction) return;
     
     const updateActionWithCondition = (action: TimelineAction): TimelineAction => {
@@ -262,6 +289,8 @@ const Timeline: React.FC = () => {
     };
     
     let actionUpdated = false;
+    let updatedLibraryActions = [...libraryActions];
+    
     setDays(days.map(day => {
       const actionIndex = day.actions.findIndex(a => a.id === selectedAction?.id);
       if (actionIndex >= 0) {
@@ -274,12 +303,19 @@ const Timeline: React.FC = () => {
     }));
     
     if (!actionUpdated) {
-      setLibraryActions(libraryActions.map(action => {
+      updatedLibraryActions = libraryActions.map(action => {
         if (action.id === selectedAction?.id) {
-          return updateActionWithCondition(action);
+          const updatedAction = updateActionWithCondition(action);
+          // Save to database
+          saveLibraryAction(updatedAction).catch(error => {
+            console.error("Error saving library action:", error);
+          });
+          return updatedAction;
         }
         return action;
-      }));
+      });
+      
+      setLibraryActions(updatedLibraryActions);
     }
     
     toast({
@@ -308,6 +344,7 @@ const Timeline: React.FC = () => {
     if (sourceDayId === targetDayId) return;
     
     if (!sourceDayId) {
+      // Dropping from library to a day
       setDays(days.map(day => {
         if (day.id === targetDayId) {
           const newAction = {
@@ -326,13 +363,21 @@ const Timeline: React.FC = () => {
       return;
     }
     
-    const actionToMove = days.find(d => d.id === sourceDayId)?.actions.find(a => a.id === action.id);
+    // Find the source day
+    const sourceDay = days.find(d => d.id === sourceDayId);
+    if (!sourceDay) {
+      console.error("Source day not found");
+      return;
+    }
     
+    // Find the action to move
+    const actionToMove = sourceDay.actions.find(a => a.id === action.id);
     if (!actionToMove) {
       console.error("Action not found for moving");
       return;
     }
     
+    // Update days: add action to target day and remove from source day
     setDays(days.map(day => {
       if (day.id === targetDayId) {
         return { ...day, actions: [...day.actions, actionToMove] };
@@ -349,53 +394,56 @@ const Timeline: React.FC = () => {
     });
   };
 
-  const saveTimeline = () => {
+  const saveTimelineData = async () => {
     if (!timelineId) return;
     
-    const savedTimelines = localStorage.getItem('credit-card-timelines');
-    let timelines: TimelineType[] = [];
-    
-    if (savedTimelines) {
-      try {
-        timelines = JSON.parse(savedTimelines);
-      } catch (error) {
-        console.error("Error parsing timelines:", error);
-      }
+    try {
+      const updatedTimeline: TimelineType = {
+        id: timelineId,
+        name: timelineName,
+        days,
+        libraryActions: [],
+        createdAt: new Date().toISOString()
+      };
+      
+      await saveTimeline(updatedTimeline);
+      
+      toast({
+        title: "Timeline Saved",
+        description: "Your timeline has been saved successfully",
+      });
+    } catch (error) {
+      console.error("Error saving timeline:", error);
+      toast({
+        title: "Error Saving Timeline",
+        description: "There was a problem saving your timeline. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    const updatedTimeline: TimelineType = {
-      id: timelineId,
-      name: timelineName,
-      days,
-      libraryActions: [],
-      createdAt: new Date().toISOString()
-    };
-    
-    const existingIndex = timelines.findIndex(t => t.id === timelineId);
-    
-    if (existingIndex >= 0) {
-      timelines[existingIndex] = updatedTimeline;
-    } else {
-      timelines.push(updatedTimeline);
-    }
-    
-    localStorage.setItem('credit-card-timelines', JSON.stringify(timelines));
-    
-    toast({
-      title: "Timeline Saved",
-      description: "Your timeline has been saved successfully",
-    });
   };
 
   useEffect(() => {
-    if (timelineId) {
+    if (timelineId && !loading) {
       const debounce = setTimeout(() => {
-        saveTimeline();
+        saveTimelineData();
       }, 1000);
       
       return () => clearTimeout(debounce);
     }
-  }, [days, libraryActions, timelineName]);
+  }, [days, timelineName, loading]);
+
+  // Save library actions separately
+  useEffect(() => {
+    if (libraryActions.length > 0) {
+      const debounce = setTimeout(() => {
+        saveLibraryActions(libraryActions).catch(error => {
+          console.error("Error saving library actions:", error);
+        });
+      }, 1000);
+      
+      return () => clearTimeout(debounce);
+    }
+  }, [libraryActions]);
 
   const handleExportConfig = () => {
     try {
@@ -434,6 +482,14 @@ const Timeline: React.FC = () => {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-6 flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading timeline...</p>
+      </div>
+    );
+  }
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -535,39 +591,43 @@ const Timeline: React.FC = () => {
         
         {editMode === 'action' && (
           <Dialog open={editMode === 'action'} onOpenChange={() => setEditMode(null)}>
-            <ActionEditor
-              action={selectedAction}
-              onSave={handleSaveAction}
-              onClose={() => setEditMode(null)}
-              isNew={isNewItem}
-              onAddCondition={handleAddCondition}
-              onEditCondition={handleEditCondition}
-              allActions={getAllActions()}
-              dayLabel={formatDayLabel(selectedDay)}
-            />
+            <DialogContent className="sm:max-w-[800px]" draggable>
+              <ActionEditor
+                action={selectedAction}
+                onSave={handleSaveAction}
+                onClose={() => setEditMode(null)}
+                isNew={isNewItem}
+                onAddCondition={handleAddCondition}
+                onEditCondition={handleEditCondition}
+                allActions={getAllActions()}
+                dayLabel={formatDayLabel(selectedDay)}
+              />
+            </DialogContent>
           </Dialog>
         )}
         
         {editMode === 'condition' && (
           <Dialog open={editMode === 'condition'} onOpenChange={() => setEditMode(null)}>
-            <ActionEditor
-              action={selectedAction}
-              onSave={handleSaveAction}
-              onClose={() => setEditMode(null)}
-              isNew={isNewItem}
-              onAddCondition={handleAddCondition}
-              onEditCondition={handleEditCondition}
-              allActions={getAllActions()}
-            />
-            <div className="w-full max-w-md">
-              <ConditionEditor
-                condition={selectedCondition}
-                actions={getAllActions()}
-                onSave={handleSaveCondition}
+            <DialogContent className="sm:max-w-[800px]" draggable>
+              <ActionEditor
+                action={selectedAction}
+                onSave={handleSaveAction}
                 onClose={() => setEditMode(null)}
                 isNew={isNewItem}
+                onAddCondition={handleAddCondition}
+                onEditCondition={handleEditCondition}
+                allActions={getAllActions()}
               />
-            </div>
+              <div className="w-full max-w-md">
+                <ConditionEditor
+                  condition={selectedCondition}
+                  actions={getAllActions()}
+                  onSave={handleSaveCondition}
+                  onClose={() => setEditMode(null)}
+                  isNew={isNewItem}
+                />
+              </div>
+            </DialogContent>
           </Dialog>
         )}
       </div>
