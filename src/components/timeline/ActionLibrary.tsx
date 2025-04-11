@@ -5,20 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import TimelineActionCard from './TimelineActionCard';
-import { useDrag } from 'react-dnd';
 
 interface ActionLibraryProps {
   actions: TimelineAction[];
   onAddAction: () => void;
   onSelectAction: (action: TimelineAction) => void;
   onCloneAction?: (action: TimelineAction) => void;
+  onDeleteAction?: (action: TimelineAction) => void;
 }
 
 const ActionLibrary: React.FC<ActionLibraryProps> = ({ 
   actions, 
   onAddAction, 
   onSelectAction,
-  onCloneAction
+  onCloneAction,
+  onDeleteAction
 }) => {
   return (
     <Card className="h-full">
@@ -58,6 +59,7 @@ const ActionLibrary: React.FC<ActionLibraryProps> = ({
                   dayId=""
                   onSelectAction={onSelectAction}
                   onCloneAction={onCloneAction}
+                  onDeleteAction={onDeleteAction}
                 />
               </div>
             ))}

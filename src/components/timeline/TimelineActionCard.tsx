@@ -3,26 +3,27 @@ import React from 'react';
 import { TimelineAction } from '@/types/timeline';
 import { useDrag } from 'react-dnd';
 import { cn } from '@/lib/utils';
-import { Mail, MessageSquare, Phone, GitBranch, AlertTriangle } from 'lucide-react';
+import { Mail, MessageSquare, Phone, GitBranch, AlertTriangle, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Copy } from 'lucide-react';
 
 interface TimelineActionCardProps {
   action: TimelineAction;
   dayId: string;
   onSelectAction?: (action: TimelineAction) => void;
   onCloneAction?: (action: TimelineAction) => void;
+  onDeleteAction?: (action: TimelineAction) => void;
 }
 
 const TimelineActionCard: React.FC<TimelineActionCardProps> = ({ 
   action, 
   dayId,
   onSelectAction,
-  onCloneAction
+  onCloneAction,
+  onDeleteAction
 }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'ACTION',
-    item: { action: { ...action, dayId }, dayId },
+    item: { action, sourceDayId: dayId },
     collect: (monitor) => ({
       isDragging: !!monitor.isDragging(),
     }),
@@ -56,6 +57,13 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
     }
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the card click event
+    if (onDeleteAction) {
+      onDeleteAction({...action, dayId});
+    }
+  };
+
   return (
     <div
       ref={drag}
@@ -70,17 +78,31 @@ const TimelineActionCard: React.FC<TimelineActionCardProps> = ({
         {renderIcon()}
         <span className="text-sm font-medium">{action.name || action.subject}</span>
         
-        {onCloneAction && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-6 w-6 p-0 ml-auto"
-            onClick={handleClone}
-            title="Clone action"
-          >
-            <Copy size={14} />
-          </Button>
-        )}
+        <div className="ml-auto flex items-center">
+          {onCloneAction && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={handleClone}
+              title="Clone action"
+            >
+              <Copy size={14} />
+            </Button>
+          )}
+          
+          {onDeleteAction && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+              onClick={handleDelete}
+              title="Delete action"
+            >
+              <Trash2 size={14} />
+            </Button>
+          )}
+        </div>
       </div>
       
       {action.subject && (

@@ -15,6 +15,7 @@ interface TimelineDayProps {
   isDue?: boolean;
   onSelectAction?: (action: TimelineAction) => void;
   onCloneAction?: (action: TimelineAction) => void;
+  onDeleteAction?: (action: TimelineAction) => void;
 }
 
 const TimelineDay: React.FC<TimelineDayProps> = ({
@@ -24,7 +25,8 @@ const TimelineDay: React.FC<TimelineDayProps> = ({
   onDrop,
   isDue = false,
   onSelectAction,
-  onCloneAction
+  onCloneAction,
+  onDeleteAction
 }) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'ACTION',
@@ -74,6 +76,7 @@ const TimelineDay: React.FC<TimelineDayProps> = ({
                 dayId={day.id}
                 onSelectAction={onSelectAction}
                 onCloneAction={onCloneAction}
+                onDeleteAction={onDeleteAction}
               />
             ))}
             <Button

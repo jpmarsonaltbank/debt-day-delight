@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -16,7 +15,17 @@ import { useToast } from '@/hooks/use-toast';
 import { Download, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { getTimeline, saveTimeline, getLibraryActions, saveLibraryAction, saveLibraryActions } from '@/lib/db';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { getTimeline, saveTimeline, getLibraryActions, saveLibraryAction, saveLibraryActions, deleteLibraryAction } from '@/lib/db';
 
 const Timeline: React.FC = () => {
   const { toast } = useToast();
@@ -47,6 +56,8 @@ const Timeline: React.FC = () => {
   const [editMode, setEditMode] = useState<'action' | 'condition' | null>(null);
   const [isNewItem, setIsNewItem] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [actionToDelete, setActionToDelete] = useState<TimelineAction | null>(null);
 
   const formatDayLabel = (day: TimelineDayType | null): string => {
     if (!day) return '';
@@ -306,7 +317,6 @@ const Timeline: React.FC = () => {
       updatedLibraryActions = libraryActions.map(action => {
         if (action.id === selectedAction?.id) {
           const updatedAction = updateActionWithCondition(action);
-          // Save to database
           saveLibraryAction(updatedAction).catch(error => {
             console.error("Error saving library action:", error);
           });
@@ -339,12 +349,11 @@ const Timeline: React.FC = () => {
   };
 
   const handleDropAction = (item: any, targetDayId: string) => {
-    const { action, dayId: sourceDayId } = item;
+    const { action, sourceDayId } = item;
     
     if (sourceDayId === targetDayId) return;
     
     if (!sourceDayId) {
-      // Dropping from library to a day
       setDays(days.map(day => {
         if (day.id === targetDayId) {
           const newAction = {
@@ -363,21 +372,18 @@ const Timeline: React.FC = () => {
       return;
     }
     
-    // Find the source day
     const sourceDay = days.find(d => d.id === sourceDayId);
     if (!sourceDay) {
       console.error("Source day not found");
       return;
     }
     
-    // Find the action to move
     const actionToMove = sourceDay.actions.find(a => a.id === action.id);
     if (!actionToMove) {
       console.error("Action not found for moving");
       return;
     }
     
-    // Update days: add action to target day and remove from source day
     setDays(days.map(day => {
       if (day.id === targetDayId) {
         return { ...day, actions: [...day.actions, actionToMove] };
@@ -432,7 +438,6 @@ const Timeline: React.FC = () => {
     }
   }, [days, timelineName, loading]);
 
-  // Save library actions separately
   useEffect(() => {
     if (libraryActions.length > 0) {
       const debounce = setTimeout(() => {
@@ -481,6 +486,52 @@ const Timeline: React.FC = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleDeleteAction = (action: TimelineAction) => {
+    setActionToDelete(action);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!actionToDelete) return;
+
+    if (actionToDelete.dayId) {
+      setDays(days.map(day => {
+        if (day.id === actionToDelete.dayId) {
+          return {
+            ...day,
+            actions: day.actions.filter(a => a.id !== actionToDelete.id)
+          };
+        }
+        return day;
+      }));
+
+      toast({
+        title: "Action Deleted",
+        description: `Successfully deleted action from timeline`,
+      });
+    } else {
+      try {
+        await deleteLibraryAction(actionToDelete.id);
+        setLibraryActions(libraryActions.filter(a => a.id !== actionToDelete.id));
+        
+        toast({
+          title: "Library Action Deleted",
+          description: `Successfully deleted action from library`,
+        });
+      } catch (error) {
+        console.error("Error deleting library action:", error);
+        toast({
+          title: "Error Deleting Action",
+          description: "There was a problem deleting the action. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+
+    setActionToDelete(null);
+    setDeleteConfirmOpen(false);
   };
 
   if (loading) {
@@ -551,6 +602,7 @@ const Timeline: React.FC = () => {
                         isDue={day.day === 0}
                         onSelectAction={handleSelectAction}
                         onCloneAction={handleCloneAction}
+                        onDeleteAction={handleDeleteAction}
                       />
                     ))}
                   </div>
@@ -585,6 +637,7 @@ const Timeline: React.FC = () => {
               onAddAction={handleAddLibraryAction}
               onSelectAction={handleSelectAction}
               onCloneAction={handleCloneAction}
+              onDeleteAction={handleDeleteAction}
             />
           </div>
         </div>
@@ -630,6 +683,23 @@ const Timeline: React.FC = () => {
             </DialogContent>
           </Dialog>
         )}
+        
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Action</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this action? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteAction} className="bg-red-500 hover:bg-red-600">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DndProvider>
   );
