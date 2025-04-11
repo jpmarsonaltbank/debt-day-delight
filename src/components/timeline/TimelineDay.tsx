@@ -42,7 +42,7 @@ const TimelineDay: React.FC<TimelineDayProps> = ({
   return (
     <div className="relative mb-8">
       <div className="flex items-center justify-center mb-4">
-        <div className="bg-primary text-white rounded-full px-4 py-1 text-sm font-medium">
+        <div className={`text-white rounded-full px-4 py-1 text-sm font-medium ${isDue ? 'bg-[#ea384c]' : 'bg-primary'}`}>
           {isDue ? 'Due Date' : day.day > 0 ? `D+${day.day}` : `D${day.day}`}
         </div>
       </div>

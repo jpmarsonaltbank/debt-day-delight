@@ -45,6 +45,18 @@ const Timeline: React.FC = () => {
   const [isNewItem, setIsNewItem] = useState(false);
 
   useEffect(() => {
+    const savedLibraryActions = localStorage.getItem('credit-card-shared-library');
+    if (savedLibraryActions) {
+      try {
+        const actions: TimelineAction[] = JSON.parse(savedLibraryActions);
+        setLibraryActions(actions);
+      } catch (error) {
+        console.error("Error loading shared library actions:", error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (timelineId) {
       const savedTimelines = localStorage.getItem('credit-card-timelines');
       if (savedTimelines) {
@@ -55,7 +67,6 @@ const Timeline: React.FC = () => {
           if (timeline) {
             setTimelineName(timeline.name);
             setDays(timeline.days.length > 0 ? timeline.days : generateInitialDays());
-            setLibraryActions(timeline.libraryActions || []);
           } else {
             navigate('/');
             toast({
@@ -124,6 +135,8 @@ const Timeline: React.FC = () => {
     } else {
       setLibraryActions([...libraryActions, clonedAction]);
       
+      localStorage.setItem('credit-card-shared-library', JSON.stringify([...libraryActions, clonedAction]));
+      
       toast({
         title: "Library Action Cloned",
         description: `Successfully cloned action in library`,
@@ -159,8 +172,12 @@ const Timeline: React.FC = () => {
         const updatedActions = [...libraryActions];
         updatedActions[existingActionIndex] = action;
         setLibraryActions(updatedActions);
+        
+        localStorage.setItem('credit-card-shared-library', JSON.stringify(updatedActions));
       } else {
         setLibraryActions([...libraryActions, action]);
+        
+        localStorage.setItem('credit-card-shared-library', JSON.stringify([...libraryActions, action]));
       }
       
       toast({
@@ -301,12 +318,19 @@ const Timeline: React.FC = () => {
       return;
     }
     
+    const actionToMove = days.find(d => d.id === sourceDayId)?.actions.find(a => a.id === action.id);
+    
+    if (!actionToMove) {
+      console.error("Action not found for moving");
+      return;
+    }
+    
     setDays(days.map(day => {
+      if (day.id === targetDayId) {
+        return { ...day, actions: [...day.actions, actionToMove] };
+      }
       if (day.id === sourceDayId) {
         return { ...day, actions: day.actions.filter(a => a.id !== action.id) };
-      }
-      if (day.id === targetDayId) {
-        return { ...day, actions: [...day.actions, action] };
       }
       return day;
     }));
@@ -335,7 +359,7 @@ const Timeline: React.FC = () => {
       id: timelineId,
       name: timelineName,
       days,
-      libraryActions,
+      libraryActions: [],
       createdAt: new Date().toISOString()
     };
     
