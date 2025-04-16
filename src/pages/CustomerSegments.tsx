@@ -31,7 +31,8 @@ import {
   Dialog, 
   DialogContent, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -60,8 +61,10 @@ const CustomerSegments = () => {
       try {
         await addSampleCustomerSegments();
         const loadedSegments = await getCustomerSegments();
-        setSegments(loadedSegments);
-        setFilteredSegments(loadedSegments);
+        // Sort segments by priority (ascending)
+        const sortedSegments = loadedSegments.sort((a, b) => a.priority - b.priority);
+        setSegments(sortedSegments);
+        setFilteredSegments(sortedSegments);
       } catch (error) {
         console.error('Error loading segments:', error);
         toast({
@@ -90,13 +93,25 @@ const CustomerSegments = () => {
     }
   }, [searchQuery, segments]);
 
+  // Get existing priorities except for the current segment being edited
+  const getExistingPriorities = (): number[] => {
+    if (!currentSegment) {
+      return segments.map(segment => segment.priority);
+    }
+    return segments
+      .filter(segment => segment.id !== currentSegment.id)
+      .map(segment => segment.priority);
+  };
+
   // Handle segment form submission
   const handleSubmitForm = async (data: CustomerSegment) => {
     setIsLoading(true);
     try {
       await saveCustomerSegment(data);
       const updatedSegments = await getCustomerSegments();
-      setSegments(updatedSegments);
+      // Sort segments by priority (ascending)
+      const sortedSegments = updatedSegments.sort((a, b) => a.priority - b.priority);
+      setSegments(sortedSegments);
       setIsFormOpen(false);
       setCurrentSegment(undefined);
     } catch (error) {
@@ -119,7 +134,9 @@ const CustomerSegments = () => {
     try {
       await deleteCustomerSegment(segmentToDelete);
       const updatedSegments = await getCustomerSegments();
-      setSegments(updatedSegments);
+      // Sort segments by priority (ascending)
+      const sortedSegments = updatedSegments.sort((a, b) => a.priority - b.priority);
+      setSegments(sortedSegments);
       toast({
         title: 'Segment deleted',
         description: 'The customer segment has been deleted',
@@ -184,9 +201,9 @@ const CustomerSegments = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Priority</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Priority</TableHead>
                   <TableHead>Rules</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -194,9 +211,9 @@ const CustomerSegments = () => {
               <TableBody>
                 {filteredSegments.map((segment) => (
                   <TableRow key={segment.id}>
+                    <TableCell>{segment.priority}</TableCell>
                     <TableCell className="font-medium">{segment.name}</TableCell>
                     <TableCell>{segment.description}</TableCell>
-                    <TableCell>{segment.priority}</TableCell>
                     <TableCell>{segment.rules.length}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -236,11 +253,15 @@ const CustomerSegments = () => {
               <DialogTitle>
                 {currentSegment ? 'Edit Segment' : 'Create New Segment'}
               </DialogTitle>
+              <DialogDescription>
+                Customer segments help you target specific groups based on criteria.
+              </DialogDescription>
             </DialogHeader>
             <CustomerSegmentForm
               initialData={currentSegment}
               onSubmit={handleSubmitForm}
               onCancel={() => setIsFormOpen(false)}
+              existingPriorities={getExistingPriorities()}
             />
           </DialogContent>
         </Dialog>
