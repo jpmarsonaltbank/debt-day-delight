@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,11 @@ const CustomerSegmentForm = ({ initialData, onSubmit, onCancel }: CustomerSegmen
     },
   });
 
-  const { fields, append, remove } = form.control._formValues.rules as CustomerSegmentRule[];
+  // Initialize useFieldArray for managing the rules array
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "rules"
+  });
 
   useEffect(() => {
     if (initialData) {
@@ -112,8 +116,8 @@ const CustomerSegmentForm = ({ initialData, onSubmit, onCancel }: CustomerSegmen
 
         <div>
           <FormLabel className="block mb-2">Rules</FormLabel>
-          {form.watch('rules').map((rule, index) => (
-            <Card key={index} className="mb-4">
+          {fields.map((field, index) => (
+            <Card key={field.id} className="mb-4">
               <CardContent className="pt-4">
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-sm font-medium">Rule {index + 1}</h4>
@@ -121,11 +125,8 @@ const CustomerSegmentForm = ({ initialData, onSubmit, onCancel }: CustomerSegmen
                     type="button" 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => {
-                      const rules = [...form.watch('rules')];
-                      rules.splice(index, 1);
-                      form.setValue('rules', rules);
-                    }}
+                    onClick={() => remove(index)}
+                    disabled={fields.length === 1}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -171,10 +172,7 @@ const CustomerSegmentForm = ({ initialData, onSubmit, onCancel }: CustomerSegmen
             type="button" 
             variant="outline" 
             size="sm" 
-            onClick={() => {
-              const rules = [...form.watch('rules'), { collection_name: "customer", expression: "" }];
-              form.setValue('rules', rules);
-            }}
+            onClick={() => append({ collection_name: "customer", expression: "" })}
             className="mt-2"
           >
             <Plus className="h-4 w-4 mr-2" />
