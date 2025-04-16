@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -34,7 +33,7 @@ import {
   DialogTitle,
   DialogDescription
 } from '@/components/ui/dialog';
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { CustomerSegment } from '@/types/customer-segment';
 import { 
@@ -44,6 +43,68 @@ import {
   addSampleCustomerSegments 
 } from '@/lib/customer-segment-db';
 import CustomerSegmentForm from '@/components/customer-segment/CustomerSegmentForm';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+
+const SortableTableRow = ({ segment, onEdit, onDelete }: { 
+  segment: CustomerSegment, 
+  onEdit: (segment: CustomerSegment) => void, 
+  onDelete: (id: string) => void 
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: segment.id as string,
+  });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 0,
+    position: 'relative' as const,
+  };
+  
+  return (
+    <TableRow ref={setNodeRef} style={style} className={isDragging ? 'bg-muted' : ''}>
+      <TableCell>
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="cursor-grab mr-2" 
+            {...attributes} 
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </Button>
+          {segment.priority}
+        </div>
+      </TableCell>
+      <TableCell className="font-medium">{segment.name}</TableCell>
+      <TableCell>{segment.description}</TableCell>
+      <TableCell>{segment.rules.length}</TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onEdit(segment)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(segment.id as string)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
 
 const CustomerSegments = () => {
   const [segments, setSegments] = useState<CustomerSegment[]>([]);
@@ -55,13 +116,20 @@ const CustomerSegments = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [segmentToDelete, setSegmentToDelete] = useState<string | undefined>(undefined);
 
-  // Load segments on mount
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
+
   useEffect(() => {
     const loadSegments = async () => {
       try {
         await addSampleCustomerSegments();
         const loadedSegments = await getCustomerSegments();
-        // Sort segments by priority (ascending)
         const sortedSegments = loadedSegments.sort((a, b) => a.priority - b.priority);
         setSegments(sortedSegments);
         setFilteredSegments(sortedSegments);
@@ -80,7 +148,6 @@ const CustomerSegments = () => {
     loadSegments();
   }, []);
 
-  // Filter segments when search query changes
   useEffect(() => {
     if (searchQuery) {
       const filtered = segments.filter(segment => 
@@ -93,7 +160,6 @@ const CustomerSegments = () => {
     }
   }, [searchQuery, segments]);
 
-  // Get existing priorities except for the current segment being edited
   const getExistingPriorities = (): number[] => {
     if (!currentSegment) {
       return segments.map(segment => segment.priority);
@@ -103,13 +169,11 @@ const CustomerSegments = () => {
       .map(segment => segment.priority);
   };
 
-  // Handle segment form submission
   const handleSubmitForm = async (data: CustomerSegment) => {
     setIsLoading(true);
     try {
       await saveCustomerSegment(data);
       const updatedSegments = await getCustomerSegments();
-      // Sort segments by priority (ascending)
       const sortedSegments = updatedSegments.sort((a, b) => a.priority - b.priority);
       setSegments(sortedSegments);
       setIsFormOpen(false);
@@ -126,7 +190,6 @@ const CustomerSegments = () => {
     }
   };
 
-  // Handle delete confirmation
   const handleDeleteConfirm = async () => {
     if (!segmentToDelete) return;
     
@@ -134,7 +197,6 @@ const CustomerSegments = () => {
     try {
       await deleteCustomerSegment(segmentToDelete);
       const updatedSegments = await getCustomerSegments();
-      // Sort segments by priority (ascending)
       const sortedSegments = updatedSegments.sort((a, b) => a.priority - b.priority);
       setSegments(sortedSegments);
       toast({
@@ -152,6 +214,49 @@ const CustomerSegments = () => {
       setIsDeleteDialogOpen(false);
       setSegmentToDelete(undefined);
       setIsLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = segments.findIndex(segment => segment.id === active.id);
+      const newIndex = segments.findIndex(segment => segment.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setIsLoading(true);
+        
+        try {
+          const reorderedSegments = [...segments];
+          const [movedSegment] = reorderedSegments.splice(oldIndex, 1);
+          reorderedSegments.splice(newIndex, 0, movedSegment);
+          
+          const updatedSegments = reorderedSegments.map((segment, index) => ({
+            ...segment,
+            priority: index + 1,
+          }));
+          
+          for (const segment of updatedSegments) {
+            await saveCustomerSegment(segment);
+          }
+          
+          setSegments(updatedSegments);
+          toast({
+            title: 'Priorities updated',
+            description: 'Segment priorities have been successfully updated',
+          });
+        } catch (error) {
+          console.error('Error updating segment priorities:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to update segment priorities',
+            variant: 'destructive',
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
     }
   };
 
@@ -198,55 +303,48 @@ const CustomerSegments = () => {
           </div>
         ) : (
           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Rules</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSegments.map((segment) => (
-                  <TableRow key={segment.id}>
-                    <TableCell>{segment.priority}</TableCell>
-                    <TableCell className="font-medium">{segment.name}</TableCell>
-                    <TableCell>{segment.description}</TableCell>
-                    <TableCell>{segment.rules.length}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setCurrentSegment(segment);
-                            setIsFormOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSegmentToDelete(segment.id);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <DndContext 
+              sensors={sensors} 
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis]}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Rules</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  <SortableContext 
+                    items={filteredSegments.map(segment => segment.id as string)} 
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {filteredSegments.map((segment) => (
+                      <SortableTableRow 
+                        key={segment.id}
+                        segment={segment}
+                        onEdit={(segment) => {
+                          setCurrentSegment(segment);
+                          setIsFormOpen(true);
+                        }}
+                        onDelete={(id) => {
+                          setSegmentToDelete(id);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      />
+                    ))}
+                  </SortableContext>
+                </TableBody>
+              </Table>
+            </DndContext>
           </div>
         )}
 
-        {/* Create/Edit Segment Dialog */}
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
@@ -266,7 +364,6 @@ const CustomerSegments = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
         <AlertDialog 
           open={isDeleteDialogOpen} 
           onOpenChange={setIsDeleteDialogOpen}
