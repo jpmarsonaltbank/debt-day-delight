@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Customer } from '@/types/customer';
@@ -8,12 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface CustomerFormProps {
   customer?: Customer;
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
   onSave: (customer: Customer) => void;
+  embedded?: boolean;
 }
 
 const defaultCustomer: Customer = {
@@ -61,7 +63,8 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
   customer = defaultCustomer, 
   isOpen, 
   onClose, 
-  onSave 
+  onSave,
+  embedded = false
 }) => {
   const form = useForm<Customer>({
     defaultValues: customer
@@ -69,18 +72,14 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
 
   const handleSubmit = (data: Customer) => {
     onSave(data);
-    onClose();
+    if (onClose) onClose();
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{customer.id ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
-        </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+  const formContent = (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <ScrollArea className={embedded ? "h-[calc(100vh-280px)]" : "max-h-[70vh]"}>
+          <div className="pr-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Basic Information */}
               <FormField
@@ -266,7 +265,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
             </div>
             
             {/* Contact Information */}
-            <div className="space-y-4">
+            <div className="space-y-4 mt-6">
               <h3 className="text-lg font-medium">Contact Information</h3>
               
               {/* Email */}
@@ -352,17 +351,40 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
                 </div>
               </div>
             </div>
-            
-            <div className="flex justify-end space-x-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {customer.id ? 'Update' : 'Create'} Customer
-              </Button>
-            </div>
-          </form>
-        </Form>
+          </div>
+        </ScrollArea>
+        
+        <div className="flex justify-end space-x-4 pt-4 border-t mt-4">
+          {!embedded && onClose && (
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit">
+            {customer.id ? 'Update' : 'Create'} Customer
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+
+  if (embedded) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          {formContent}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>{customer.id ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
+        </DialogHeader>
+        {formContent}
       </DialogContent>
     </Dialog>
   );
