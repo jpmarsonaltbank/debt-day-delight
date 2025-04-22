@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -26,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Action } from '@/types/timeline';
+import { Action, ActionType } from '@/types/timeline';
 
 const actionSchema = z.object({
   id: z.string().optional(),
@@ -39,7 +40,7 @@ const actionSchema = z.object({
     .refine(val => !val || val.length > 0, "Email subject cannot be empty")
     .refine(
       (val) => {
-        // This signature matches what Zod expects
+        if (val === undefined) return true;
         return true;
       },
       {

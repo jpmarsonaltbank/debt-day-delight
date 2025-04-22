@@ -166,6 +166,25 @@ export const saveLibraryAction = async (action: TimelineAction): Promise<string>
   });
 };
 
+export const deleteLibraryAction = async (id: string): Promise<void> => {
+  const db = await initDB();
+  
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([LIBRARY_STORE], 'readwrite');
+    const store = transaction.objectStore(LIBRARY_STORE);
+    const request = store.delete(id);
+    
+    request.onsuccess = () => {
+      resolve();
+    };
+    
+    request.onerror = (event) => {
+      console.error('Error deleting library action:', event);
+      reject('Could not delete library action');
+    };
+  });
+};
+
 // Helper function to save multiple library actions
 export const saveLibraryActions = async (actions: TimelineAction[]): Promise<void> => {
   const db = await initDB();
