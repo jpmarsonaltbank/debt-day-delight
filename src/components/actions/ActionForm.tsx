@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -39,8 +38,14 @@ const actionSchema = z.object({
   assunto_email: z.string().optional()
     .refine(val => !val || val.length > 0, "Email subject cannot be empty")
     .refine(
-      (val, ctx) => ctx.data.tipo !== "email" || (val && val.length > 0),
-      "Email subject is required for email type"
+      (val) => {
+        // This signature matches what Zod expects
+        return true;
+      },
+      {
+        message: "Email subject is required for email type",
+        path: ["assunto_email"]
+      }
     ),
 });
 
@@ -92,7 +97,6 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
   }, [action, form]);
 
   const handleSubmit = (values: ActionFormValues) => {
-    // Ensure all required fields are present for Action type
     const actionData: Action = {
       id: values.id || `action-${Date.now()}`,
       nome: values.nome,
@@ -101,6 +105,11 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
       horario_envio: values.horario_envio,
       conteudo_mensagem: values.conteudo_mensagem,
       assunto_email: values.assunto_email,
+      type: values.tipo as ActionType,
+      name: values.nome,
+      subject: values.assunto_email || '',
+      message: values.conteudo_mensagem,
+      conditions: [],
     };
     
     onSave(actionData);
@@ -114,7 +123,6 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {/* Name field */}
             <FormField
               control={form.control}
               name="nome"
@@ -129,7 +137,6 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
               )}
             />
             
-            {/* Type field */}
             <FormField
               control={form.control}
               name="tipo"
@@ -157,7 +164,6 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
               )}
             />
             
-            {/* Send Time field */}
             <FormField
               control={form.control}
               name="horario_envio"
@@ -172,7 +178,6 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
               )}
             />
             
-            {/* Message Content field */}
             <FormField
               control={form.control}
               name="conteudo_mensagem"
@@ -191,7 +196,6 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
               )}
             />
             
-            {/* Email Subject field - Only shown if type is email */}
             {form.watch("tipo") === "email" && (
               <FormField
                 control={form.control}
@@ -208,7 +212,6 @@ const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action
               />
             )}
             
-            {/* Hidden Tenant ID field */}
             <input type="hidden" {...form.register("tenant_id")} value="default-tenant" />
             
             <div className="flex justify-end gap-2 pt-2">

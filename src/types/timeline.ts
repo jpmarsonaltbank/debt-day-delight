@@ -19,6 +19,13 @@ export interface TimelineAction {
   conditions: Condition[];
   dayId?: string;
   title?: string; // Adding optional title property for backward compatibility
+  // Fields to maintain compatibility with Action interface
+  nome?: string;
+  tipo?: 'email' | 'whatsapp' | 'sms';
+  tenant_id?: string;
+  horario_envio?: string;
+  conteudo_mensagem?: string;
+  assunto_email?: string;
 }
 
 export interface TimelineDay {
@@ -51,6 +58,14 @@ export interface Action {
   horario_envio: string;
   conteudo_mensagem: string;
   assunto_email?: string;
+  // Fields to maintain compatibility with TimelineAction interface
+  type?: ActionType;
+  name?: string;
+  subject?: string;
+  message?: string;
+  conditions?: Condition[];
+  dayId?: string;
+  title?: string;
 }
 
 // Customer Timeline Types

@@ -1,5 +1,4 @@
-
-import { Timeline, TimelineAction } from '@/types/timeline';
+import { Timeline, TimelineAction, Action } from '@/types/timeline';
 
 // Database constants
 const DB_NAME = 'timelineDB';
@@ -143,7 +142,18 @@ export const saveLibraryAction = async (action: TimelineAction): Promise<string>
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([LIBRARY_STORE], 'readwrite');
     const store = transaction.objectStore(LIBRARY_STORE);
-    const request = store.put(action);
+    
+    // Ensure the action has all required fields for a TimelineAction
+    const actionToSave: TimelineAction = {
+      ...action,
+      type: action.type || (action.tipo as any),
+      name: action.name || action.nome || '',
+      subject: action.subject || action.assunto_email || '',
+      message: action.message || action.conteudo_mensagem || '',
+      conditions: action.conditions || []
+    };
+    
+    const request = store.put(actionToSave);
     
     request.onsuccess = () => {
       resolve(action.id);
@@ -152,25 +162,6 @@ export const saveLibraryAction = async (action: TimelineAction): Promise<string>
     request.onerror = (event) => {
       console.error('Error saving library action:', event);
       reject('Could not save library action');
-    };
-  });
-};
-
-export const deleteLibraryAction = async (id: string): Promise<void> => {
-  const db = await initDB();
-  
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([LIBRARY_STORE], 'readwrite');
-    const store = transaction.objectStore(LIBRARY_STORE);
-    const request = store.delete(id);
-    
-    request.onsuccess = () => {
-      resolve();
-    };
-    
-    request.onerror = (event) => {
-      console.error('Error deleting library action:', event);
-      reject('Could not delete library action');
     };
   });
 };

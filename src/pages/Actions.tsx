@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, FileEdit } from 'lucide-react';
@@ -27,9 +26,43 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Action } from '@/types/timeline';
+import { Action, TimelineAction } from '@/types/timeline';
 import ActionForm from '@/components/actions/ActionForm';
 import { getLibraryActions, saveLibraryAction, deleteLibraryAction } from '@/lib/db';
+
+function convertTimelineActionsToActions(timelineActions: TimelineAction[]): Action[] {
+  return timelineActions.map(ta => ({
+    id: ta.id,
+    nome: ta.nome || ta.name,
+    tipo: (ta.tipo || ta.type) as 'email' | 'whatsapp' | 'sms',
+    tenant_id: ta.tenant_id,
+    horario_envio: ta.horario_envio || '00:00',
+    conteudo_mensagem: ta.conteudo_mensagem || ta.message,
+    assunto_email: ta.assunto_email || ta.subject,
+    type: ta.type,
+    name: ta.name,
+    subject: ta.subject,
+    message: ta.message,
+    conditions: ta.conditions || [],
+  }));
+}
+
+function convertActionToTimelineAction(action: Action): TimelineAction {
+  return {
+    id: action.id,
+    type: action.type || action.tipo as 'email' | 'whatsapp' | 'sms' | 'negativar',
+    name: action.name || action.nome,
+    subject: action.subject || action.assunto_email || '',
+    message: action.message || action.conteudo_mensagem,
+    conditions: action.conditions || [],
+    nome: action.nome,
+    tipo: action.tipo,
+    tenant_id: action.tenant_id,
+    horario_envio: action.horario_envio,
+    conteudo_mensagem: action.conteudo_mensagem,
+    assunto_email: action.assunto_email,
+  };
+}
 
 const Actions = () => {
   const { toast } = useToast();
@@ -45,7 +78,7 @@ const Actions = () => {
   const loadActions = async () => {
     try {
       const data = await getLibraryActions();
-      setActions(data as Action[]);
+      setActions(convertTimelineActionsToActions(data));
     } catch (error) {
       console.error('Error loading actions:', error);
       toast({
@@ -58,7 +91,8 @@ const Actions = () => {
 
   const handleSave = async (action: Action) => {
     try {
-      await saveLibraryAction(action);
+      const timelineAction = convertActionToTimelineAction(action);
+      await saveLibraryAction(timelineAction);
       await loadActions();
       setIsFormOpen(false);
       toast({
