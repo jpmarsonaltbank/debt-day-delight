@@ -41,3 +41,13 @@ export interface TimelineState {
   selectedAction: TimelineAction | null;
   timelineName: string;
 }
+
+export interface Action {
+  id: string;
+  nome: string;
+  tipo: ActionType;
+  tenant_id?: string;
+  horario_envio: string;
+  conteudo_mensagem: string;
+  assunto_email?: string;
+}
