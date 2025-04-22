@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { getTimelines, saveTimeline, deleteTimeline, migrateFromLocalStorage } from '@/lib/db';
+import { BarChart as ChartBar } from "lucide-react";
 
 const TimelineList = () => {
   const { toast } = useToast();
@@ -27,14 +27,10 @@ const TimelineList = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Load timelines and migrate data on component mount
   useEffect(() => {
     const loadTimelines = async () => {
       try {
-        // Attempt to migrate data from localStorage first time
         await migrateFromLocalStorage();
-        
-        // Then load timelines from IndexedDB
         const loadedTimelines = await getTimelines();
         setTimelines(loadedTimelines);
       } catch (error) {
@@ -139,13 +135,25 @@ const TimelineList = () => {
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Credit Card Collection Timelines</h1>
-        <Button 
-          onClick={() => setIsCreating(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus size={16} />
-          New Timeline
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            asChild
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Link to="/collection-timeline-performance">
+              <ChartBar className="w-5 h-5 mr-1" />
+              Compare Performance
+            </Link>
+          </Button>
+          <Button 
+            onClick={() => setIsCreating(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus size={16} />
+            New Timeline
+          </Button>
+        </div>
       </div>
 
       {isCreating && (

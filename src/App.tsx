@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -19,6 +18,7 @@ import CustomerTimeline from "./pages/CustomerTimeline";
 import Statements from "./pages/Statements";
 import Settings from "./pages/Settings";
 import Actions from "./pages/Actions";
+import CollectionTimelinePerformance from "./pages/CollectionTimelinePerformance";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +47,11 @@ const App = () => (
                   <Route path="/statements" element={<Statements />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/actions" element={<Actions />} />
+                  <Route path="/collection-timeline-performance" element={
+                    <React.Suspense fallback={<div>Loading...</div>}>
+                      {React.createElement(require('./pages/CollectionTimelinePerformance').default)}
+                    </React.Suspense>
+                  } />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>
