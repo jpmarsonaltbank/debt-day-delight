@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,11 +54,10 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
 
-  // Load customers on component mount
   useEffect(() => {
     const loadCustomers = async () => {
       try {
-        await addSampleCustomers(); // Add sample data if none exists
+        await addSampleCustomers();
         const data = await getCustomers();
         setCustomers(data);
         setFilteredCustomers(data);
@@ -78,7 +76,6 @@ const Customers = () => {
     loadCustomers();
   }, [toast]);
 
-  // Filter customers when search term changes
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setFilteredCustomers(customers);
@@ -93,12 +90,10 @@ const Customers = () => {
     }
   }, [searchTerm, customers]);
 
-  // Handle save customer
   const handleSaveCustomer = async (customer: Customer) => {
     try {
       await saveCustomer(customer);
       
-      // Refresh customer list
       const updatedCustomers = await getCustomers();
       setCustomers(updatedCustomers);
       
@@ -109,7 +104,6 @@ const Customers = () => {
           : 'Customer created successfully',
       });
 
-      // If creating a new customer, stay in the detail view after saving
       if (!customer.id) {
         const newCustomer = updatedCustomers.find(c => 
           c.external_id === customer.external_id && 
@@ -119,7 +113,6 @@ const Customers = () => {
           setSelectedCustomer(newCustomer);
         }
       } else {
-        // Update the selected customer with the latest data
         const updatedCustomer = updatedCustomers.find(c => c.id === customer.id);
         if (updatedCustomer) {
           setSelectedCustomer(updatedCustomer);
@@ -135,14 +128,12 @@ const Customers = () => {
     }
   };
 
-  // Handle delete customer
   const handleDeleteCustomer = async () => {
     if (!customerToDelete) return;
     
     try {
       await deleteCustomer(customerToDelete);
       
-      // Refresh customer list
       const updatedCustomers = await getCustomers();
       setCustomers(updatedCustomers);
       
@@ -151,7 +142,6 @@ const Customers = () => {
         description: 'Customer deleted successfully',
       });
 
-      // If the deleted customer was being viewed, go back to list view
       if (selectedCustomer?.id === customerToDelete) {
         setViewMode('list');
         setSelectedCustomer(undefined);
@@ -169,31 +159,26 @@ const Customers = () => {
     }
   };
 
-  // Open customer detail view
   const viewCustomerDetail = (customer: Customer) => {
     setSelectedCustomer(customer);
     setViewMode('detail');
   };
 
-  // Open new customer form
   const openNewCustomerForm = () => {
     setSelectedCustomer(undefined);
     setViewMode('detail');
   };
 
-  // Go back to list view
   const goBackToList = () => {
     setViewMode('list');
     setSelectedCustomer(undefined);
   };
 
-  // Open confirm delete dialog
   const openDeleteDialog = (id: string) => {
     setCustomerToDelete(id);
     setIsDeleteDialogOpen(true);
   };
 
-  // Get primary contact information
   const getPrimaryEmail = (customer: Customer) => {
     const primaryEmail = customer.emails.find(email => email.principal);
     return primaryEmail?.email_address || customer.emails[0]?.email_address || '-';
@@ -212,7 +197,6 @@ const Customers = () => {
     return `${address.address}, ${address.number}, ${address.city}`;
   };
 
-  // Get status badge classname
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'normal':
@@ -368,7 +352,6 @@ const Customers = () => {
         </CardContent>
       )}
 
-      {/* Customer form modal - kept for backward compatibility */}
       <CustomerForm
         customer={selectedCustomer}
         isOpen={isFormOpen}
@@ -376,7 +359,6 @@ const Customers = () => {
         onSave={handleSaveCustomer}
       />
 
-      {/* Delete confirmation dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -397,8 +379,7 @@ const Customers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </CardContent>
-  </Card>
+    </Card>
   );
 };
 
