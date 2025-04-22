@@ -13,56 +13,180 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { 
-  Calendar, 
-  Users, 
-  User, 
-  FileText, 
+  Activity,
+  Users,
+  Eye,
+  Book,
+  FileText,
   Settings,
+  Database
 } from "lucide-react";
 
 export function AppSidebar() {
   const location = useLocation();
   
-  // Menu items
-  const items = [
-    {
-      title: "Collection timelines",
-      path: "/",
-      icon: Calendar,
-    },
-    {
-      title: "Customer segments",
-      path: "/customer-segments",
-      icon: Users,
-    },
-    {
-      title: "Customers",
-      path: "/customers",
-      icon: User,
-    },
-    {
-      title: "Statements",
-      path: "/statements",
-      icon: FileText,
-    },
-    {
-      title: "Settings",
-      path: "/settings",
-      icon: Settings,
-    },
-  ];
+  // Menu items grouped by category
+  const menuGroups = {
+    operations: [
+      {
+        title: "Collections timeline",
+        path: "/",
+        icon: Activity,
+      },
+      {
+        title: "Customer segments",
+        path: "/customer-segments",
+        icon: Database,
+      },
+    ],
+    views: [
+      {
+        title: "Collections timeline performance",
+        path: "/timeline-performance",
+        icon: Eye,
+      },
+      {
+        title: "Customer timeline",
+        path: "/customer-timeline",
+        icon: Eye,
+      },
+      {
+        title: "Portfolio",
+        path: "/portfolio",
+        icon: Eye,
+      },
+    ],
+    records: [
+      {
+        title: "Actions library",
+        path: "/actions-library",
+        icon: Book,
+      },
+      {
+        title: "Customers",
+        path: "/customers",
+        icon: Users,
+      },
+      {
+        title: "Statements",
+        path: "/statements",
+        icon: FileText,
+      },
+    ],
+    settings: [
+      {
+        title: "Company",
+        path: "/settings/company",
+        icon: Settings,
+      },
+      {
+        title: "Business rules",
+        path: "/settings/rules",
+        icon: Settings,
+      },
+      {
+        title: "Users",
+        path: "/settings/users",
+        icon: Settings,
+      },
+      {
+        title: "Integrations",
+        path: "/settings/integrations",
+        icon: Settings,
+      },
+    ],
+  };
 
   return (
     <Sidebar>
       <SidebarHeader className="flex items-center px-4 py-2">
-        <h1 className="text-lg font-semibold">Timeline App</h1>
+        <h1 className="text-lg font-semibold">Collection timeline app</h1>
       </SidebarHeader>
       <SidebarContent>
+        {/* Operations Group */}
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {menuGroups.operations.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActive}
+                      tooltip={item.title}
+                    >
+                      <Link to={item.path}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Views Group */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Views</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuGroups.views.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActive}
+                      tooltip={item.title}
+                    >
+                      <Link to={item.path}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Records Group */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Records</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuGroups.records.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActive}
+                      tooltip={item.title}
+                    >
+                      <Link to={item.path}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Settings Group */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {menuGroups.settings.map((item) => {
                 const isActive = location.pathname === item.path;
                 return (
                   <SidebarMenuItem key={item.title}>
