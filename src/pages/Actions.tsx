@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Action } from '@/types/timeline';
 import ActionForm from '@/components/actions/ActionForm';
+import { getLibraryActions, saveLibraryAction, deleteLibraryAction } from '@/lib/db';
 
 const Actions = () => {
   const { toast } = useToast();
@@ -44,8 +45,9 @@ const Actions = () => {
   const loadActions = async () => {
     try {
       const data = await getLibraryActions();
-      setActions(data);
+      setActions(data as Action[]);
     } catch (error) {
+      console.error('Error loading actions:', error);
       toast({
         title: "Error",
         description: "Failed to load actions",
@@ -63,6 +65,7 @@ const Actions = () => {
         description: `Action ${action.id ? 'updated' : 'created'} successfully`,
       });
     } catch (error) {
+      console.error('Error saving action:', error);
       toast({
         title: "Error",
         description: "Failed to save action",
@@ -82,6 +85,7 @@ const Actions = () => {
         description: "Action deleted successfully",
       });
     } catch (error) {
+      console.error('Error deleting action:', error);
       toast({
         title: "Error",
         description: "Failed to delete action",
@@ -114,32 +118,40 @@ const Actions = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {actions.map((action) => (
-                <TableRow key={action.id}>
-                  <TableCell>{action.nome}</TableCell>
-                  <TableCell className="capitalize">{action.tipo}</TableCell>
-                  <TableCell>{action.horario_envio}</TableCell>
-                  <TableCell className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedAction(action);
-                        setIsFormOpen(true);
-                      }}
-                    >
-                      <FileEdit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setActionToDelete(action.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+              {actions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                    No actions found. Create your first action.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                actions.map((action) => (
+                  <TableRow key={action.id}>
+                    <TableCell>{action.nome}</TableCell>
+                    <TableCell className="capitalize">{action.tipo}</TableCell>
+                    <TableCell>{action.horario_envio}</TableCell>
+                    <TableCell className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedAction(action);
+                          setIsFormOpen(true);
+                        }}
+                      >
+                        <FileEdit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setActionToDelete(action.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -46,7 +46,7 @@ export interface TimelineState {
 export interface Action {
   id: string;
   nome: string;
-  tipo: ActionType;
+  tipo: 'email' | 'whatsapp' | 'sms';
   tenant_id?: string;
   horario_envio: string;
   conteudo_mensagem: string;

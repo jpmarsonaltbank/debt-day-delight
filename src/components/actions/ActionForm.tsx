@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useForm } from 'react-hook-form';
-import * as z from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -24,21 +26,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { Action } from '@/types/timeline';
 
-const actionFormSchema = z.object({
-  nome: z.string().min(1, 'Name is required'),
-  tipo: z.enum(['email', 'whatsapp', 'sms']),
-  horario_envio: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:mm)'),
-  conteudo_mensagem: z.string().min(1, 'Message content is required'),
-  assunto_email: z.string().optional().refine((val) => {
-    if (val === undefined) return true;
-    return val.length > 0;
-  }, 'Subject is required for email actions'),
+const actionSchema = z.object({
+  id: z.string().optional(),
+  nome: z.string().min(1, "Name is required"),
+  tipo: z.enum(["email", "whatsapp", "sms"]),
+  tenant_id: z.string().optional(),
+  horario_envio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format must be HH:MM"),
+  conteudo_mensagem: z.string().min(1, "Message content is required"),
+  assunto_email: z.string().optional()
+    .refine(val => !val || val.length > 0, "Email subject cannot be empty")
+    .refine(
+      (val, ctx) => ctx.data.tipo !== "email" || (val && val.length > 0),
+      "Email subject is required for email type"
+    ),
 });
+
+type ActionFormValues = z.infer<typeof actionSchema>;
 
 interface ActionFormProps {
   isOpen: boolean;
@@ -47,39 +53,68 @@ interface ActionFormProps {
   action: Action | null;
 }
 
-const ActionForm: React.FC<ActionFormProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  action,
-}) => {
-  const form = useForm<z.infer<typeof actionFormSchema>>({
-    resolver: zodResolver(actionFormSchema),
+const ActionForm: React.FC<ActionFormProps> = ({ isOpen, onClose, onSave, action }) => {
+  const form = useForm<ActionFormValues>({
+    resolver: zodResolver(actionSchema),
     defaultValues: {
-      nome: action?.nome || '',
-      tipo: action?.tipo || 'email',
-      horario_envio: action?.horario_envio || '09:00',
-      conteudo_mensagem: action?.conteudo_mensagem || '',
-      assunto_email: action?.assunto_email || '',
+      id: '',
+      nome: '',
+      tipo: 'email' as const,
+      tenant_id: '',
+      horario_envio: '',
+      conteudo_mensagem: '',
+      assunto_email: '',
     },
   });
 
-  const handleSubmit = (values: z.infer<typeof actionFormSchema>) => {
-    onSave({
-      id: action?.id || `action-${Date.now()}`,
-      ...values,
-      tenant_id: action?.tenant_id || undefined,
-    });
+  React.useEffect(() => {
+    if (action) {
+      form.reset({
+        id: action.id,
+        nome: action.nome,
+        tipo: action.tipo,
+        tenant_id: action.tenant_id || '',
+        horario_envio: action.horario_envio,
+        conteudo_mensagem: action.conteudo_mensagem,
+        assunto_email: action.assunto_email || '',
+      });
+    } else {
+      form.reset({
+        id: '',
+        nome: '',
+        tipo: 'email' as const,
+        tenant_id: '',
+        horario_envio: '',
+        conteudo_mensagem: '',
+        assunto_email: '',
+      });
+    }
+  }, [action, form]);
+
+  const handleSubmit = (values: ActionFormValues) => {
+    // Ensure all required fields are present for Action type
+    const actionData: Action = {
+      id: values.id || `action-${Date.now()}`,
+      nome: values.nome,
+      tipo: values.tipo,
+      tenant_id: values.tenant_id || '',
+      horario_envio: values.horario_envio,
+      conteudo_mensagem: values.conteudo_mensagem,
+      assunto_email: values.assunto_email,
+    };
+    
+    onSave(actionData);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{action ? 'Edit Action' : 'Create Action'}</DialogTitle>
+          <DialogTitle>{action ? 'Edit Action' : 'Create New Action'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {/* Name field */}
             <FormField
               control={form.control}
               name="nome"
@@ -93,7 +128,8 @@ const ActionForm: React.FC<ActionFormProps> = ({
                 </FormItem>
               )}
             />
-
+            
+            {/* Type field */}
             <FormField
               control={form.control}
               name="tipo"
@@ -103,38 +139,60 @@ const ActionForm: React.FC<ActionFormProps> = ({
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select action type" />
+                        <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="email">Email</SelectItem>
-                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
                       <SelectItem value="sms">SMS</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
+            
+            {/* Send Time field */}
             <FormField
               control={form.control}
               name="horario_envio"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Send Time (HH:mm)</FormLabel>
+                  <FormLabel>Send Time (HH:MM)</FormLabel>
                   <FormControl>
-                    <Input type="time" {...field} />
+                    <Input placeholder="e.g. 14:30" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {form.watch('tipo') === 'email' && (
+            
+            {/* Message Content field */}
+            <FormField
+              control={form.control}
+              name="conteudo_mensagem"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Message Content</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Enter message content" 
+                      className="min-h-[100px]" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Email Subject field - Only shown if type is email */}
+            {form.watch("tipo") === "email" && (
               <FormField
                 control={form.control}
                 name="assunto_email"
@@ -149,30 +207,17 @@ const ActionForm: React.FC<ActionFormProps> = ({
                 )}
               />
             )}
-
-            <FormField
-              control={form.control}
-              name="conteudo_mensagem"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Message Content</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter message content"
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" type="button" onClick={onClose}>
+            
+            {/* Hidden Tenant ID field */}
+            <input type="hidden" {...form.register("tenant_id")} value="default-tenant" />
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit">
+                Save
+              </Button>
             </div>
           </form>
         </Form>
