@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { lazy, Suspense } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,7 +19,9 @@ import CustomerTimeline from "./pages/CustomerTimeline";
 import Statements from "./pages/Statements";
 import Settings from "./pages/Settings";
 import Actions from "./pages/Actions";
-import CollectionTimelinePerformance from "./pages/CollectionTimelinePerformance";
+
+// Lazy load the CollectionTimelinePerformance component
+const CollectionTimelinePerformance = lazy(() => import('./pages/CollectionTimelinePerformance'));
 
 const queryClient = new QueryClient();
 
@@ -48,9 +51,9 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/actions" element={<Actions />} />
                   <Route path="/collection-timeline-performance" element={
-                    <React.Suspense fallback={<div>Loading...</div>}>
-                      {React.createElement(require('./pages/CollectionTimelinePerformance').default)}
-                    </React.Suspense>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      <CollectionTimelinePerformance />
+                    </Suspense>
                   } />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
