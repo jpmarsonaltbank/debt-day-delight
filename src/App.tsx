@@ -14,8 +14,10 @@ import AppSidebar from "./components/AppSidebar";
 // Placeholder pages for the new menu items
 import CustomerSegments from "./pages/CustomerSegments";
 import Customers from "./pages/Customers";
+import CustomerTimeline from "./pages/CustomerTimeline";
 import Statements from "./pages/Statements";
 import Settings from "./pages/Settings";
+import Actions from "./pages/Actions";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,7 @@ const App = () => (
                   <Route path="/legacy" element={<Index />} />
                   <Route path="/customer-segments" element={<CustomerSegments />} />
                   <Route path="/customers" element={<Customers />} />
+                  <Route path="/customer-timeline" element={<CustomerTimeline />} />
                   <Route path="/statements" element={<Statements />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/actions" element={<Actions />} />
